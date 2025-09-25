@@ -1,5 +1,40 @@
 # P2P Chat Application - Fixes Implemented
 
+## Change Log Format
+All changes must be documented with:
+- **Date & Time**: YYYY-MM-DD HH:MM:SS format
+- **Problem**: What wasn't working
+- **Solution**: How it was fixed
+- **Files Modified**: List of affected files
+- **Version**: Updated version number
+
+---
+
+## [2025-01-25 16:02:37] - Group Call 3+ Participant Fix & Project Documentation
+**Problem**: Group audio calls failing with 3+ participants, third peer isolated. Also needed proper project documentation and version tracking.
+
+**Solution**:
+1. Fixed participant list management to include all peers
+2. Corrected message routing with proper 'to' field filtering
+3. Implemented proper connection establishment between all peers
+4. Added comprehensive README with project philosophy
+5. Implemented version tracking system on login screen
+6. Created version.js for automatic version management
+
+**Files Modified**:
+- `js/group-call-handler.js` - Fixed mesh networking logic
+- `README.md` - Created comprehensive project documentation
+- `js/version.js` - Created version tracking system
+- `index.html` - Added version display on login screen
+- `style.css` - Added version info styling
+- `GROUP_CALL_FIXES.md` - Documented group call fixes
+
+**Version**: v1.0.0
+
+**Testing**: Group calls tested and working with 3-4 participants
+
+---
+
 ## Recent Major Updates (Latest Session)
 
 ### 🔧 Firebase Connection Issues (FIXED)

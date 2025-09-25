@@ -9,6 +9,7 @@ class P2PChatApp {
         this.messageHandler = new MessageHandler();
         this.fileHandler = window.fileHandler;
         this.callHandler = null; // Will be initialized after joining room
+        this.groupCallHandler = null; // Will be initialized after joining room
         // No automatic reconnection - manual only
         this.peers = new Set();
         this.peerNicknames = new Map(); // Map of peerId -> nickname
@@ -150,6 +151,24 @@ class P2PChatApp {
                 this.manualReconnect();
             });
         }
+
+        // Close tab button
+        const closeTabBtn = document.getElementById('closeTabBtn');
+        if (closeTabBtn) {
+            closeTabBtn.addEventListener('click', () => {
+                console.log('[App] Close tab button clicked');
+                // Try to close the window/tab
+                window.close();
+
+                // If window.close() doesn't work (likely for user-opened tabs),
+                // show a message
+                setTimeout(() => {
+                    if (!window.closed) {
+                        this.messageHandler.displaySystemMessage('⚠️ Cannot close this tab automatically. Please close it manually.');
+                    }
+                }, 100);
+            });
+        }
         
         // Typing indicator
         messageInput.addEventListener('input', () => {
@@ -238,6 +257,10 @@ class P2PChatApp {
         // Initialize Call Handler
         this.callHandler = new CallHandler(this.webrtcHandler, this.userId, this.nickname);
         this.callHandler.initializeUI();
+
+        // Initialize Group Call Handler
+        this.groupCallHandler = new GroupCallHandler(this.webrtcHandler, this.userId, this.nickname);
+        this.groupCallHandler.initializeUI();
         
         // Setup file handler
         this.setupFileHandlers();
@@ -279,6 +302,10 @@ class P2PChatApp {
                 if (this.callHandler) {
                     this.callHandler.handleMessage(message);
                 }
+            } else if (message.type && message.type.startsWith('group-call-')) {
+                if (this.groupCallHandler) {
+                    this.groupCallHandler.handleMessage(message);
+                }
             } else if (message.type === 'typing') {
                 console.log('Received typing message:', message);
                 // Don't show typing indicator for own messages
@@ -309,6 +336,9 @@ class P2PChatApp {
             document.getElementById('fileButton').disabled = false;
             if (this.callHandler) {
                 this.callHandler.enableCallButtons();
+            }
+            if (this.groupCallHandler) {
+                this.groupCallHandler.enableCallButton();
             }
         });
 
@@ -534,6 +564,12 @@ class P2PChatApp {
                 this.callHandler.cleanup();
                 this.callHandler = null;
             }
+
+            // Clean up group call handler
+            if (this.groupCallHandler) {
+                this.groupCallHandler.cleanup();
+                this.groupCallHandler = null;
+            }
             
             // Clear peers
             this.peers.clear();
@@ -558,6 +594,10 @@ class P2PChatApp {
             // Reinitialize Call Handler
             this.callHandler = new CallHandler(this.webrtcHandler, this.userId, this.nickname);
             this.callHandler.initializeUI();
+
+            // Reinitialize Group Call Handler
+            this.groupCallHandler = new GroupCallHandler(this.webrtcHandler, this.userId, this.nickname);
+            this.groupCallHandler.initializeUI();
             
             // Setup file handlers
             this.setupFileHandlers();
