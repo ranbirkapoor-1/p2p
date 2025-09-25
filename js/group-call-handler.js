@@ -310,23 +310,25 @@ class GroupCallHandler {
             // Add self to display
             this.addParticipantCard(this.userId, this.nickname, true);
 
-            // Connect to initiator (initiator will create offer)
-            console.log(`[GroupCall] Waiting for initiator ${message.from} to connect`);
+            // Connect to ALL existing participants in the call
+            console.log(`[GroupCall] Connecting to all participants in the call:`, message.participants);
 
-            // Also check for other participants already in the call
-            console.log(`[GroupCall] Checking connections with other participants:`, message.participants);
+            // Connect to each participant (including initiator)
             for (const peerId of message.participants) {
-                if (peerId !== this.userId && peerId !== message.from) {
-                    console.log(`[GroupCall] Need to connect with ${peerId}`);
-                    // Always let the peer with smaller ID initiate
+                if (peerId !== this.userId) {
+                    console.log(`[GroupCall] Checking connection with ${peerId}`);
+
+                    // Determine who initiates based on ID comparison
                     const shouldInitiate = this.userId < peerId;
-                    console.log(`[GroupCall] Should I initiate connection to ${peerId}? ${shouldInitiate} (myId: ${this.userId})`);
+                    console.log(`[GroupCall] Connection with ${peerId}: shouldInitiate=${shouldInitiate} (myId: ${this.userId})`);
+
                     if (shouldInitiate) {
-                        // Wait a bit to let them join first
-                        setTimeout(async () => {
-                            console.log(`[GroupCall] Now initiating connection to ${peerId}`);
-                            await this.connectToParticipant(peerId, true);
-                        }, 2000);
+                        // Initiate connection immediately
+                        console.log(`[GroupCall] Initiating connection to ${peerId}`);
+                        await this.connectToParticipant(peerId, true);
+                    } else {
+                        // The other peer will initiate
+                        console.log(`[GroupCall] Waiting for ${peerId} to initiate connection`);
                     }
                 }
             }
@@ -865,15 +867,24 @@ class GroupCallHandler {
         // Add new participant
         this.currentGroupCall.participants.add(message.from);
 
-        // Determine who initiates connection based on ID comparison
-        const shouldInitiate = this.userId < message.from;
-        console.log(`Should initiate connection with ${message.from}: ${shouldInitiate}`);
+        // IMPORTANT: For group calls, ALL existing participants should connect to the new participant
+        // The new participant will connect to all existing participants they don't have connections with
+        // This ensures full mesh connectivity
 
-        if (shouldInitiate) {
-            console.log(`Initiating connection to new participant ${message.from}`);
-            await this.connectToParticipant(message.from, true);
+        // If we don't have a connection with this participant yet, establish one
+        if (!this.callConnections.has(message.from)) {
+            // Determine who initiates connection based on ID comparison
+            const shouldInitiate = this.userId < message.from;
+            console.log(`Connection needed with ${message.from}. Should initiate: ${shouldInitiate}`);
+
+            if (shouldInitiate) {
+                console.log(`Initiating connection to new participant ${message.from}`);
+                await this.connectToParticipant(message.from, true);
+            } else {
+                console.log(`Waiting for ${message.from} to initiate connection`);
+            }
         } else {
-            console.log(`Waiting for ${message.from} to initiate connection`);
+            console.log(`Already connected to ${message.from}`);
         }
     }
 

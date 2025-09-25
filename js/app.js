@@ -10,12 +10,9 @@ class P2PChatApp {
         this.fileHandler = window.fileHandler;
         this.callHandler = null; // Will be initialized after joining room
         this.groupCallHandler = null; // Will be initialized after joining room
-        // No automatic reconnection - manual only
         this.peers = new Set();
         this.peerNicknames = new Map(); // Map of peerId -> nickname
         this.connectionState = CONFIG.CONNECTION_STATE.DISCONNECTED;
-        this.savedRoomId = null; // Store for reconnection
-        this.savedNickname = null; // Store for reconnection
         
         // Page visibility handling
         this.isPageVisible = true;
@@ -206,9 +203,6 @@ class P2PChatApp {
         this.roomId = roomId;
         this.nickname = nickname;
         
-        // Save for potential reconnection
-        this.savedRoomId = roomId;
-        this.savedNickname = nickname;
         
         // Save nickname to localStorage
         localStorage.setItem('chatNickname', nickname);
@@ -261,8 +255,6 @@ class P2PChatApp {
         this.messageHandler.displaySystemMessage(`Joined private room`);
         this.messageHandler.displaySystemMessage(`⏳ Waiting for P2P connection to be established...`);
         
-        // No automatic reconnection - manual only
-        console.log('[App] Manual reconnection mode enabled');
         
         // Update connection status
         this.updateConnectionStatus(CONFIG.CONNECTION_STATE.CONNECTING);
@@ -331,7 +323,7 @@ class P2PChatApp {
                     this.updateConnectionStatus(CONFIG.CONNECTION_STATE.DISCONNECTED);
                     
                     // Show disconnection message
-                    this.messageHandler.displaySystemMessage('⚠️ Lost P2P connection. Click Reconnect to try again.');
+                    this.messageHandler.displaySystemMessage('⚠️ Lost P2P connection. Please rejoin the room.');
                 } else {
                     // No peers at all - alone in room
                     this.updateConnectionStatus(CONFIG.CONNECTION_STATE.DISCONNECTED);
@@ -352,7 +344,7 @@ class P2PChatApp {
         this.firebaseHandler.onConnectionState((connected) => {
             console.log(`[App] Firebase connection: ${connected ? 'ONLINE' : 'OFFLINE'}`);
             if (!connected) {
-                this.messageHandler.displaySystemMessage('⚠️ Firebase connection lost. Attempting to reconnect...');
+                this.messageHandler.displaySystemMessage('⚠️ Firebase connection lost.');
             } else if (this.roomId) {
                 this.messageHandler.displaySystemMessage('✅ Firebase connection restored');
             }
@@ -384,7 +376,7 @@ class P2PChatApp {
             // Check if peer already exists to avoid duplicates
             const isNewPeer = !this.peers.has(peerId);
             
-            // If peer exists but reconnecting, clean up old connection first
+            // If peer exists, clean up old connection first
             if (!isNewPeer && this.webrtcHandler) {
                 console.log(`[App] Cleaning up old connection for ${peerId}`);
                 // Clean up any existing connection
@@ -400,7 +392,7 @@ class P2PChatApp {
                 if (isNewPeer) {
                     this.messageHandler.displaySystemMessage(`${nickname} joined the room`);
                 } else {
-                    this.messageHandler.displaySystemMessage(`${nickname} reconnected`);
+                    this.messageHandler.displaySystemMessage(`${nickname} joined`);
                 }
             }
             
@@ -546,8 +538,6 @@ class P2PChatApp {
                 // Either: not in room, OR in room but lost all connections
                 dots[0].classList.add('active-red');
                 
-                // Show reconnect button when disconnected
-                // Show reconnect ONLY if:
                 // 1. We were in a room (have savedRoomId)
                 // 2. We still want to be in that room (have roomId)
                 // 3. We have peers but no P2P connections
@@ -664,19 +654,10 @@ class P2PChatApp {
                 peerCountEl.textContent = 'Connecting...';
             } else if (totalUsersInRoom === 1) {
                 // Alone in room
-                peerCountEl.textContent = 'Alone (1 user)';
+                peerCountEl.textContent = '1 user';
             } else {
-                // Multiple users in room - show detailed status
-                if (p2pConnectedCount === 0 && otherPeersInRoom > 0) {
-                    // Others in room but no P2P connections
-                    peerCountEl.textContent = `${totalUsersInRoom} users (No P2P)`;
-                } else if (p2pConnectedCount < otherPeersInRoom) {
-                    // Partially connected
-                    peerCountEl.textContent = `${totalUsersInRoom} users (${p2pConnectedCount}/${otherPeersInRoom} P2P)`;
-                } else {
-                    // Fully connected
-                    peerCountEl.textContent = `${totalUsersInRoom} users`;
-                }
+                // Multiple users in room
+                peerCountEl.textContent = `${totalUsersInRoom} users`;
             }
         }
         
@@ -715,8 +696,6 @@ class P2PChatApp {
 
     // Leave room and cleanup
     leaveRoom() {
-        // Clean up reconnection manager
-        // No automatic reconnection to cleanup
         
         if (this.webrtcHandler) {
             this.webrtcHandler.disconnect();
@@ -993,9 +972,8 @@ class P2PChatApp {
             const connectedPeers = this.webrtcHandler.getConnectedPeerIds();
             
             if (connectedPeers.length === 0 && this.pausedState.peers.size > 0) {
-                // Lost all connections, need to reconnect
-                console.log('[App] Lost connections during pause, reconnecting...');
-                this.reconnect();
+                // Lost all connections
+                console.log('[App] Lost connections during pause');
             } else {
                 // Connections still alive
                 console.log('[App] Connections resumed successfully');
