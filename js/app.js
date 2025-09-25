@@ -21,7 +21,8 @@ class P2PChatApp {
         this.hiddenTimestamp = null;
         this.disconnectTimer = null;
         this.wasConnectedBeforeHidden = false;
-        
+        this.typingTimer = null; // Add typing timer as class property
+
         this.init();
     }
 
@@ -151,7 +152,6 @@ class P2PChatApp {
         }
         
         // Typing indicator
-        let typingTimer;
         messageInput.addEventListener('input', () => {
             if (this.roomId) {
                 // Send typing indicator via WebRTC if connected, otherwise Firebase
@@ -169,8 +169,8 @@ class P2PChatApp {
                     this.firebaseHandler.sendTypingIndicator(true);
                 }
                 
-                clearTimeout(typingTimer);
-                typingTimer = setTimeout(() => {
+                clearTimeout(this.typingTimer);
+                this.typingTimer = setTimeout(() => {
                     const stopTypingMessage = {
                         type: 'typing',
                         userId: this.userId,
@@ -478,7 +478,7 @@ class P2PChatApp {
             messageInput.value = '';
             
             // Clear typing indicator
-            clearTimeout(typingTimer);
+            clearTimeout(this.typingTimer);
             const stopTypingMessage = {
                 type: 'typing',
                 userId: this.userId,
