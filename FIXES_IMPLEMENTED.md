@@ -10,6 +10,35 @@ All changes must be documented with:
 
 ---
 
+## [2025-01-25 16:37:04] - UI Cleanup & Group Call Connection Fix
+
+**Problem**:
+1. Unnecessary UI elements (reconnect button, close button) cluttering interface
+2. Group audio calls - third peer unable to connect/communicate with first two peers
+3. Reconnect system not needed - users can rejoin rooms
+
+**Solution**:
+1. Removed reconnect button and all reconnect system code
+2. Removed close tab button
+3. Removed "(All P2P)" text from peer count display
+4. Fixed group call connection logic:
+   - Proper message broadcasting to all participants
+   - Fixed connection establishment between all peers
+   - Added offerToReceiveAudio constraint
+   - Improved logging for debugging connections
+
+**Files Modified**:
+- `index.html` - Removed reconnect and close buttons, kept group call button for testing
+- `js/app.js` - Removed manualReconnect function and all reconnect-related code
+- `js/group-call-handler.js` - Fixed participant connection logic and message broadcasting
+- `style.css` - Related styles remain but unused elements removed
+
+**Version**: v1.0.1
+
+**Testing**: Group calls should now work properly with 3-4 participants
+
+---
+
 ## [2025-01-25 16:02:37] - Group Call 3+ Participant Fix & Project Documentation
 **Problem**: Group audio calls failing with 3+ participants, third peer isolated. Also needed proper project documentation and version tracking.
 

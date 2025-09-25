@@ -143,32 +143,7 @@ class P2PChatApp {
             }, 100);
         });
 
-        // Reconnect button - simple manual reconnection
-        const reconnectBtn = document.getElementById('reconnectBtn');
-        if (reconnectBtn) {
-            reconnectBtn.addEventListener('click', () => {
-                console.log('[App] Manual reconnect triggered');
-                this.manualReconnect();
-            });
-        }
 
-        // Close tab button
-        const closeTabBtn = document.getElementById('closeTabBtn');
-        if (closeTabBtn) {
-            closeTabBtn.addEventListener('click', () => {
-                console.log('[App] Close tab button clicked');
-                // Try to close the window/tab
-                window.close();
-
-                // If window.close() doesn't work (likely for user-opened tabs),
-                // show a message
-                setTimeout(() => {
-                    if (!window.closed) {
-                        this.messageHandler.displaySystemMessage('⚠️ Cannot close this tab automatically. Please close it manually.');
-                    }
-                }, 100);
-            });
-        }
         
         // Typing indicator
         messageInput.addEventListener('input', () => {
@@ -527,135 +502,11 @@ class P2PChatApp {
         }
     }
 
-    // Simple manual reconnect to the same room
-    async manualReconnect() {
-        if (!this.savedRoomId || !this.savedNickname) {
-            console.error('[App] No saved room data for reconnection');
-            this.messageHandler.displaySystemMessage('❌ No room to reconnect to');
-            return;
-        }
-        
-        console.log(`[App] Manual reconnect to room ${this.savedRoomId}...`);
-        const reconnectBtn = document.getElementById('reconnectBtn');
-        if (reconnectBtn) {
-            reconnectBtn.textContent = 'Reconnecting...';
-            reconnectBtn.disabled = true;
-        }
-        
-        try {
-            this.messageHandler.displaySystemMessage('🔄 Reconnecting...');
-            
-            // Step 1: Clean up everything for a fresh start
-            console.log('[App] Step 1: Cleaning up old connections');
-            
-            // Clean up WebRTC
-            if (this.webrtcHandler) {
-                this.webrtcHandler.disconnect();
-                this.webrtcHandler = null;
-            }
-            
-            // Clean up Firebase
-            if (this.firebaseHandler && this.firebaseHandler.roomRef) {
-                await this.firebaseHandler.leaveRoom();
-            }
-            
-            // Clean up call handler
-            if (this.callHandler) {
-                this.callHandler.cleanup();
-                this.callHandler = null;
-            }
-
-            // Clean up group call handler
-            if (this.groupCallHandler) {
-                this.groupCallHandler.cleanup();
-                this.groupCallHandler = null;
-            }
-            
-            // Clear peers
-            this.peers.clear();
-            this.peerNicknames.clear();
-            
-            // Step 2: Store old user ID and generate new one
-            console.log('[App] Step 2: Generating new user ID');
-            const oldUserId = this.userId;  // Store old ID to clean up later
-            this.userId = this.generateUserId();
-            console.log('[App] Old user ID:', oldUserId);
-            console.log('[App] New user ID:', this.userId);
-            
-            // Step 3: Rejoin everything fresh
-            console.log('[App] Step 3: Rejoining room');
-            this.roomId = this.savedRoomId;
-            this.nickname = this.savedNickname;
-            
-            // Reinitialize WebRTC
-            this.webrtcHandler = new WebRTCHandler(this.roomId, this.userId);
-            this.setupWebRTCHandlers();
-            
-            // Reinitialize Call Handler
-            this.callHandler = new CallHandler(this.webrtcHandler, this.userId, this.nickname);
-            this.callHandler.initializeUI();
-
-            // Reinitialize Group Call Handler
-            this.groupCallHandler = new GroupCallHandler(this.webrtcHandler, this.userId, this.nickname);
-            this.groupCallHandler.initializeUI();
-            
-            // Setup file handlers
-            this.setupFileHandlers();
-            
-            // Rejoin Firebase room
-            if (this.firebaseHandler) {
-                console.log('[App] Rejoining Firebase room');
-                const joinResult = await this.firebaseHandler.joinRoom(this.roomId, this.userId, this.nickname);
-                if (joinResult) {
-                    this.setupFirebaseHandlers();
-                    
-                    // Step 4: Clean up old ghost user from Firebase
-                    if (oldUserId && oldUserId !== this.userId) {
-                        console.log('[App] Cleaning up old ghost user:', oldUserId);
-                        try {
-                            // Remove old user from Firebase room
-                            const oldUserRef = this.firebaseHandler.db.ref(`rooms/${this.roomId}/users/${oldUserId}`);
-                            await oldUserRef.remove();
-                            
-                            // Also clean up any old signals
-                            const oldSignalsRef = this.firebaseHandler.db.ref(`rooms/${this.roomId}/signals/${oldUserId}`);
-                            await oldSignalsRef.remove();
-                            
-                            console.log('[App] Ghost user cleaned up successfully');
-                        } catch (error) {
-                            console.warn('[App] Could not clean up ghost user:', error);
-                        }
-                    }
-                    
-                    this.messageHandler.displaySystemMessage('✅ Reconnected successfully');
-                    this.messageHandler.displaySystemMessage('⏳ Waiting for P2P connections...');
-                } else {
-                    throw new Error('Failed to rejoin Firebase room');
-                }
-            }
-            
-            // Update UI
-            this.updateConnectionStatus(CONFIG.CONNECTION_STATE.CONNECTING);
-            this.updatePeerCount();
-            
-        } catch (error) {
-            console.error('[App] Manual reconnection failed:', error);
-            this.messageHandler.displaySystemMessage('❌ Reconnection failed. Please try again.');
-            this.updateConnectionStatus(CONFIG.CONNECTION_STATE.DISCONNECTED);
-        } finally {
-            if (reconnectBtn) {
-                reconnectBtn.textContent = 'Reconnect';
-                reconnectBtn.disabled = false;
-            }
-        }
-    }
-
     // Update connection status indicator - CLEAR VERSION
     updateConnectionStatus(state) {
         this.connectionState = state;
         
         const dots = document.querySelectorAll('.status-dot');
-        const reconnectBtn = document.getElementById('reconnectBtn');
         const callControls = document.getElementById('callControls');
         
         // Clear all dot states
@@ -672,8 +523,6 @@ class P2PChatApp {
                 // Either: alone in room with Firebase, OR connected to all peers via P2P
                 dots[2].classList.add('active-green');
                 
-                // No need for reconnect when connected
-                if (reconnectBtn) reconnectBtn.style.display = 'none';
                 
                 // Show call controls only if we have P2P connections
                 const p2pConnected = this.webrtcHandler?.getConnectedPeersCount() > 0;
@@ -687,8 +536,6 @@ class P2PChatApp {
                 // In room with peers but establishing P2P connections
                 dots[1].classList.add('active-yellow');
                 
-                // Hide reconnect during connection attempts
-                if (reconnectBtn) reconnectBtn.style.display = 'none';
                 
                 // Hide call controls until fully connected
                 if (callControls) callControls.style.display = 'none';
@@ -708,9 +555,6 @@ class P2PChatApp {
                 const hasPeersButNoP2P = this.peers.size > 0 &&
                         (!this.webrtcHandler || this.webrtcHandler.getConnectedPeersCount() === 0);
 
-                if (reconnectBtn) {
-                    reconnectBtn.style.display = (inRoom && hasPeersButNoP2P) ? 'inline-block' : 'none';
-                }
 
                 // No calls when disconnected
                 if (callControls) callControls.style.display = 'none';
@@ -726,11 +570,9 @@ class P2PChatApp {
             dot.classList.add('paused');
         });
         
-        const reconnectBtn = document.getElementById('reconnectBtn');
         const callControls = document.getElementById('callControls');
         
-        // Hide reconnect button and call controls in paused state
-        if (reconnectBtn) reconnectBtn.style.display = 'none';
+        // Hide call controls in paused state
         if (callControls) callControls.style.display = 'none';
         
         // Update peer count to show paused state
@@ -833,7 +675,7 @@ class P2PChatApp {
                     peerCountEl.textContent = `${totalUsersInRoom} users (${p2pConnectedCount}/${otherPeersInRoom} P2P)`;
                 } else {
                     // Fully connected
-                    peerCountEl.textContent = `${totalUsersInRoom} users (All P2P)`;
+                    peerCountEl.textContent = `${totalUsersInRoom} users`;
                 }
             }
         }

@@ -1,0 +1,6 @@
+1. remove reconnect button and text related to reconnect
+2. remove close button
+3. remove people icon and (all p2p) this text i dont need. keep the lights, no of users. 
+4. remove reconnect system. i dont want it to reconect, the user will join the room again no problem
+5. room will be created and kept on firebase if a message is shared via firebase otherwise room will dissolve after the last peer left the room
+6. the first 2 peers are able to communicate with each other but the third (last joined) is left alone
