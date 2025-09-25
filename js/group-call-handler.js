@@ -294,17 +294,13 @@ class GroupCallHandler {
             // Send acceptance to initiator
             this.sendGroupCallResponse(message.from, message.callId, true);
 
-            // Notify ALL other participants that we joined
-            allParticipants.forEach(peerId => {
-                if (peerId !== this.userId && peerId !== message.from) {
-                    this.webrtcHandler.sendMessage({
-                        type: 'group-call-participant-joined',
-                        callId: message.callId,
-                        from: this.userId,
-                        fromNickname: this.nickname,
-                        timestamp: Date.now()
-                    }, peerId);
-                }
+            // Broadcast to all peers that we joined (they'll filter if needed)
+            this.webrtcHandler.sendMessage({
+                type: 'group-call-participant-joined',
+                callId: message.callId,
+                from: this.userId,
+                fromNickname: this.nickname,
+                timestamp: Date.now()
             });
 
             // Show interface
@@ -314,24 +310,26 @@ class GroupCallHandler {
             // Add self to display
             this.addParticipantCard(this.userId, this.nickname, true);
 
-            // Connect to initiator
-            console.log(`Connecting to initiator ${message.from}`);
-            await this.connectToParticipant(message.from, false);
+            // Connect to initiator (initiator will create offer)
+            console.log(`[GroupCall] Waiting for initiator ${message.from} to connect`);
 
-            // Wait a bit then connect to other participants
-            setTimeout(async () => {
-                for (const peerId of message.participants) {
-                    if (peerId !== this.userId && peerId !== message.from) {
-                        console.log(`Checking connection with participant ${peerId}`);
-                        // Determine who initiates based on ID comparison
-                        const shouldInitiate = this.userId < peerId;
-                        if (shouldInitiate) {
-                            console.log(`Initiating connection to ${peerId}`);
+            // Also check for other participants already in the call
+            console.log(`[GroupCall] Checking connections with other participants:`, message.participants);
+            for (const peerId of message.participants) {
+                if (peerId !== this.userId && peerId !== message.from) {
+                    console.log(`[GroupCall] Need to connect with ${peerId}`);
+                    // Always let the peer with smaller ID initiate
+                    const shouldInitiate = this.userId < peerId;
+                    console.log(`[GroupCall] Should I initiate connection to ${peerId}? ${shouldInitiate} (myId: ${this.userId})`);
+                    if (shouldInitiate) {
+                        // Wait a bit to let them join first
+                        setTimeout(async () => {
+                            console.log(`[GroupCall] Now initiating connection to ${peerId}`);
                             await this.connectToParticipant(peerId, true);
-                        }
+                        }, 2000);
                     }
                 }
-            }, 1000);
+            }
 
         } catch (error) {
             console.error('Failed to accept group call:', error);
@@ -382,18 +380,25 @@ class GroupCallHandler {
         // Create offer if needed
         if (createOffer) {
             console.log(`[GroupCall] Creating offer for ${peerId}`);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
+            try {
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: false
+                });
+                await pc.setLocalDescription(offer);
 
-            console.log(`[GroupCall] Sending offer to ${peerId}`);
-            this.webrtcHandler.sendMessage({
-                type: 'group-call-offer',
-                callId: this.currentGroupCall.id,
-                offer: offer,
-                from: this.userId,
-                to: peerId,
-                timestamp: Date.now()
-            });
+                console.log(`[GroupCall] Sending offer to ${peerId}`);
+                this.webrtcHandler.sendMessage({
+                    type: 'group-call-offer',
+                    callId: this.currentGroupCall.id,
+                    offer: offer,
+                    from: this.userId,
+                    to: peerId,
+                    timestamp: Date.now()
+                });
+            } catch (error) {
+                console.error(`[GroupCall] Error creating offer for ${peerId}:`, error);
+            }
         }
 
         return pc;
