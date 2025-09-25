@@ -665,14 +665,13 @@ class P2PChatApp {
                 // 2. We still want to be in that room (have roomId)
                 // 3. We have peers but no P2P connections
                 const inRoom = this.savedRoomId && this.roomId;
-                const hasPeersButNoP2P = this.peers.size > 0 && 
+                const hasPeersButNoP2P = this.peers.size > 0 &&
                         (!this.webrtcHandler || this.webrtcHandler.getConnectedPeersCount() === 0);
-                    
-                    if (reconnectBtn) {
-                        reconnectBtn.style.display = (inRoom && hasPeersButNoP2P) ? 'inline-block' : 'none';
-                    }
+
+                if (reconnectBtn) {
+                    reconnectBtn.style.display = (inRoom && hasPeersButNoP2P) ? 'inline-block' : 'none';
                 }
-                
+
                 // No calls when disconnected
                 if (callControls) callControls.style.display = 'none';
                 break;
