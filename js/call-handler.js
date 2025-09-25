@@ -242,7 +242,7 @@ class CallHandler {
                     console.log('Track id:', event.track.id);
                     console.log('Track enabled:', event.track.enabled);
                     console.log('Streams count:', event.streams.length);
-                    this.handleRemoteStream(event.streams[0], targetPeerId);
+                    this.handleRemoteStream(event.streams[0], peerId);
                 };
             }
             
@@ -385,7 +385,7 @@ class CallHandler {
                     console.log('Track id:', event.track.id);
                     console.log('Track enabled:', event.track.enabled);
                     console.log('Streams count:', event.streams.length);
-                    this.handleRemoteStream(event.streams[0], message.from);
+                    this.handleRemoteStream(event.streams[0], this.currentCall.peerId);
                 };
                 
                 // Don't add tracks or create answer yet - wait for media offer
@@ -958,29 +958,35 @@ class CallHandler {
     
     // Set remote stream for a specific peer
     setPeerRemoteStream(peerId, stream) {
-        const elements = this.peerVideoElements.get(peerId);
+        let elements = this.peerVideoElements.get(peerId);
         if (!elements) {
             // Create element if it doesn't exist
             const peerNickname = window.chatApp?.peerNicknames?.get(peerId) || 'Peer';
-            this.createPeerVideoElement(peerId, peerNickname);
-            elements = this.peerVideoElements.get(peerId);
+            elements = this.createPeerVideoElement(peerId, peerNickname);
         }
-        
+
         if (elements) {
             // Check if stream has video tracks
             const videoTracks = stream.getVideoTracks();
             const audioTracks = stream.getAudioTracks();
-            
+
+            console.log(`Setting stream for ${peerId}: ${videoTracks.length} video, ${audioTracks.length} audio tracks`);
+
             if (videoTracks.length > 0) {
                 // Video call
                 elements.video.srcObject = stream;
                 elements.video.style.display = 'block';
                 elements.audio.style.display = 'none';
+                elements.video.play().catch(err => {
+                    console.error(`Error playing video for ${peerId}:`, err);
+                });
             } else if (audioTracks.length > 0) {
                 // Audio-only call
                 elements.audio.srcObject = stream;
                 elements.video.style.display = 'none';
-                // Could show an avatar or placeholder for audio-only
+                elements.audio.play().catch(err => {
+                    console.error(`Error playing audio for ${peerId}:`, err);
+                });
             }
         }
     }
