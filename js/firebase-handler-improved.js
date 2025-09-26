@@ -10,7 +10,6 @@ class FirebaseHandler {
         this.listeners = [];
         this.isConnected = false;
         this.connectionRef = null;
-        this.lastOnlineRef = null;
         
         // Callbacks
         this.onMessageCallback = null;
@@ -106,7 +105,6 @@ class FirebaseHandler {
             this.userRef = this.roomRef.child(`users/${userId}`);
             const userData = {
                 joinedAt: firebase.database.ServerValue.TIMESTAMP,
-                lastSeen: firebase.database.ServerValue.TIMESTAMP,
                 status: 'online',
                 nickname: this.nickname,
                 userId: userId
@@ -117,10 +115,6 @@ class FirebaseHandler {
             
             // Setup disconnect handling
             await this.userRef.onDisconnect().remove();
-            
-            // Setup last online tracking
-            this.lastOnlineRef = this.roomRef.child(`lastOnline/${userId}`);
-            await this.lastOnlineRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
             
             // Start listening for room events
             this.listenForUsers();
@@ -146,8 +140,7 @@ class FirebaseHandler {
         
         try {
             await this.userRef.update({
-                status: 'online',
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
+                status: 'online'
             });
             console.log('[Firebase] Presence restored');
         } catch (error) {
@@ -165,13 +158,7 @@ class FirebaseHandler {
         // Update last seen every 30 seconds
         this.heartbeatInterval = setInterval(async () => {
             if (this.userRef && this.isConnected) {
-                try {
-                    await this.userRef.update({
-                        lastSeen: firebase.database.ServerValue.TIMESTAMP
-                    });
-                } catch (error) {
-                    console.error('[Firebase] Heartbeat error:', error);
-                }
+                // Heartbeat removed - no lastSeen updates needed
             }
         }, 30000);
     }
@@ -514,7 +501,6 @@ class FirebaseHandler {
         // Clear references
         this.roomRef = null;
         this.userRef = null;
-        this.lastOnlineRef = null;
         this.roomId = null;
         
         // Clear processed signals

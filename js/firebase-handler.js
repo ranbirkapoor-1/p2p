@@ -10,7 +10,6 @@ class FirebaseHandler {
         this.listeners = [];
         this.isConnected = false;
         this.connectionRef = null;
-        this.lastOnlineRef = null;
         
         // Callbacks
         this.onMessageCallback = null;
@@ -123,7 +122,6 @@ class FirebaseHandler {
             this.userRef = this.roomRef.child(`users/${userId}`);
             const userData = {
                 joinedAt: firebase.database.ServerValue.TIMESTAMP,
-                lastSeen: firebase.database.ServerValue.TIMESTAMP,
                 status: 'online',
                 nickname: this.nickname,
                 userId: userId
@@ -135,18 +133,11 @@ class FirebaseHandler {
             // Setup disconnect handling
             await this.userRef.onDisconnect().remove();
             
-            // Setup last online tracking
-            this.lastOnlineRef = this.roomRef.child(`lastOnline/${userId}`);
-            await this.lastOnlineRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-            
             // Start listening for room events
             this.listenForUsers();
             this.listenForMessages();
             this.listenForSignals();
             this.listenForTyping();
-            
-            // Update last seen periodically
-            this.startHeartbeat();
             
             console.log('[Firebase] ✅ Successfully joined room');
             return true;
@@ -160,11 +151,10 @@ class FirebaseHandler {
     // Restore presence after reconnection
     async restorePresence() {
         if (!this.userRef) return;
-        
+
         try {
             await this.userRef.update({
-                status: 'online',
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
+                status: 'online'
             });
             console.log('[Firebase] Presence restored');
         } catch (error) {
@@ -172,26 +162,6 @@ class FirebaseHandler {
         }
     }
 
-    // Start heartbeat to maintain presence
-    startHeartbeat() {
-        // Clear existing heartbeat
-        if (this.heartbeatInterval) {
-            clearInterval(this.heartbeatInterval);
-        }
-        
-        // Update last seen every 30 seconds
-        this.heartbeatInterval = setInterval(async () => {
-            if (this.userRef && this.isConnected) {
-                try {
-                    await this.userRef.update({
-                        lastSeen: firebase.database.ServerValue.TIMESTAMP
-                    });
-                } catch (error) {
-                    console.error('[Firebase] Heartbeat error:', error);
-                }
-            }
-        }, 30000);
-    }
 
     // Listen for users with improved handling
     listenForUsers() {
@@ -510,13 +480,7 @@ class FirebaseHandler {
     // Leave room and cleanup
     async leaveRoom() {
         console.log('[Firebase] Leaving room');
-        
-        // Stop heartbeat
-        if (this.heartbeatInterval) {
-            clearInterval(this.heartbeatInterval);
-            this.heartbeatInterval = null;
-        }
-        
+
         // Remove user from room
         if (this.userRef) {
             try {
@@ -525,7 +489,7 @@ class FirebaseHandler {
                 console.error('[Firebase] Error removing user:', error);
             }
         }
-        
+
         // Clear typing indicator
         if (this.roomRef && this.userId) {
             try {
@@ -534,22 +498,44 @@ class FirebaseHandler {
                 console.error('[Firebase] Error removing typing:', error);
             }
         }
-        
+
+        // Check if room should be deleted (no users left and no messages)
+        if (this.roomRef) {
+            try {
+                const roomSnapshot = await this.roomRef.once('value');
+                const roomData = roomSnapshot.val();
+
+                // Check if any users left
+                const hasUsers = roomData?.users && Object.keys(roomData.users).length > 0;
+                // Check if any messages exist
+                const hasMessages = roomData?.messages && Object.keys(roomData.messages).length > 0;
+
+                // Remove room if no users and no messages
+                if (!hasUsers && !hasMessages) {
+                    console.log('[Firebase] Room is empty and has no messages - removing room');
+                    await this.roomRef.remove();
+                } else if (!hasUsers && hasMessages) {
+                    console.log('[Firebase] Room has messages - keeping room data');
+                }
+            } catch (error) {
+                console.error('[Firebase] Error checking room status:', error);
+            }
+        }
+
         // Remove all listeners
         this.listeners.forEach(({ ref, event, listener }) => {
             ref.off(event, listener);
         });
         this.listeners = [];
-        
+
         // Clear references
         this.roomRef = null;
         this.userRef = null;
-        this.lastOnlineRef = null;
         this.roomId = null;
-        
+
         // Clear processed signals
         this.processedSignals.clear();
-        
+
         console.log('[Firebase] Left room successfully');
     }
 

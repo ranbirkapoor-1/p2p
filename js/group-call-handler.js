@@ -175,12 +175,14 @@ class GroupCallHandler {
             };
 
             // Send invite to each selected peer
+            // IMPORTANT: Include ALL participants in the invite so everyone knows who's in the call
             selectedPeerIds.forEach(peerId => {
-                // Send targeted message to specific peer
+                // Send targeted message to specific peer with full participant list
                 this.webrtcHandler.sendMessage({
                     ...inviteMessage,
                     to: peerId
                 });
+                console.log(`[GroupCall] Sent invite to ${peerId} with participants:`, inviteMessage.participants);
             });
 
             // Show group call interface
@@ -771,12 +773,23 @@ class GroupCallHandler {
         // Add to participants
         this.currentGroupCall.participants.add(message.from);
 
-        // If we're the initiator, connect to the accepting participant
-        if (this.currentGroupCall.initiator === this.userId) {
-            console.log(`Initiator connecting to accepting participant ${message.from}`);
-            await this.connectToParticipant(message.from, true);
+        // IMPORTANT: Connect to accepting participant if we don't have a connection yet
+        if (!this.callConnections.has(message.from)) {
+            // Determine who initiates based on ID comparison
+            const shouldInitiate = this.userId < message.from;
+            console.log(`[GroupCall] Accept from ${message.from}, shouldInitiate: ${shouldInitiate}`);
 
-            // Broadcast participant joined message
+            if (shouldInitiate) {
+                console.log(`[GroupCall] Initiating connection to accepting participant ${message.from}`);
+                await this.connectToParticipant(message.from, true);
+            } else {
+                console.log(`[GroupCall] Waiting for accepting participant ${message.from} to initiate`);
+            }
+        }
+
+        // If we're the initiator, broadcast participant joined message to everyone
+        if (this.currentGroupCall.initiator === this.userId) {
+            // Broadcast to ALL participants that someone joined
             this.webrtcHandler.sendMessage({
                 type: 'group-call-participant-joined',
                 callId: this.currentGroupCall.id,
@@ -807,23 +820,34 @@ class GroupCallHandler {
         if (!this.currentGroupCall || this.currentGroupCall.id !== message.callId) return;
         if (message.to && message.to !== this.userId) return;
 
+        console.log(`[GroupCall] Received offer from ${message.from}`);
+
         let pc = this.callConnections.get(message.from);
         if (!pc) {
+            console.log(`[GroupCall] Creating new connection for offer from ${message.from}`);
             pc = await this.connectToParticipant(message.from, false);
         }
 
-        await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
+            const answer = await pc.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false
+            });
+            await pc.setLocalDescription(answer);
 
-        this.webrtcHandler.sendMessage({
-            type: 'group-call-answer',
-            callId: this.currentGroupCall.id,
-            answer: answer,
-            from: this.userId,
-            to: message.from,
-            timestamp: Date.now()
-        });
+            console.log(`[GroupCall] Sending answer to ${message.from}`);
+            this.webrtcHandler.sendMessage({
+                type: 'group-call-answer',
+                callId: this.currentGroupCall.id,
+                answer: answer,
+                from: this.userId,
+                to: message.from,
+                timestamp: Date.now()
+            });
+        } catch (error) {
+            console.error(`[GroupCall] Error handling offer from ${message.from}:`, error);
+        }
     }
 
     // Handle group call answer
