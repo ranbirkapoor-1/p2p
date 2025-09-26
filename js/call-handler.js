@@ -233,11 +233,16 @@ class CallHandler {
                 console.log('Set local video srcObject');
             }
 
-            // Set default audio output for 1-to-1 call (earpiece)
+            // Set up audio output for the call
             if (window.audioOutputManager) {
+                // Register the stream with audio manager
+                window.audioOutputManager.registerStream(this.localStream);
+
+                // Set default to speaker for better compatibility
                 await window.audioOutputManager.setDefaultForCallType(false);
-                // Register local audio if exists
-                if (this.localVideo && withVideo) {
+
+                // Register local video element for audio output management
+                if (this.localVideo) {
                     window.audioOutputManager.registerAudioElement(this.localVideo);
                 }
             }
@@ -412,6 +417,12 @@ class CallHandler {
             if (this.currentCall.isVideo && this.localVideo) {
                 this.localVideo.srcObject = this.localStream;
                 console.log('Set local video srcObject (accept)');
+
+                // Register stream with audio manager when accepting call
+                if (window.audioOutputManager) {
+                    window.audioOutputManager.registerStream(this.localStream);
+                    window.audioOutputManager.registerAudioElement(this.localVideo);
+                }
             }
             
             // Send accept response
@@ -582,8 +593,9 @@ class CallHandler {
             if (videoTracks.length > 0 && elements.video) {
                 elements.video.play().then(() => {
                     console.log(`Remote video playing for ${peerId}`);
-                    // Register with audio output manager
+                    // Register both stream and element with audio output manager
                     if (window.audioOutputManager) {
+                        window.audioOutputManager.registerStream(stream);
                         window.audioOutputManager.registerAudioElement(elements.video);
                     }
                 }).catch(err => {
@@ -592,8 +604,9 @@ class CallHandler {
             } else if (audioTracks.length > 0 && elements.audio) {
                 elements.audio.play().then(() => {
                     console.log(`Remote audio playing for ${peerId}`);
-                    // Register with audio output manager
+                    // Register both stream and element with audio output manager
                     if (window.audioOutputManager) {
+                        window.audioOutputManager.registerStream(stream);
                         window.audioOutputManager.registerAudioElement(elements.audio);
                     }
                 }).catch(err => {
@@ -609,6 +622,13 @@ class CallHandler {
 
         // Clear audio output manager
         if (window.audioOutputManager) {
+            // Unregister all streams
+            if (this.localStream) {
+                window.audioOutputManager.unregisterStream(this.localStream);
+            }
+            this.remoteStreams.forEach(stream => {
+                window.audioOutputManager.unregisterStream(stream);
+            });
             window.audioOutputManager.clearAudioElements();
         }
 

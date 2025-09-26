@@ -1,6 +1,6 @@
 implemented but not working:- in call between two peers earpiece should be default selected (speaker in the top) in group call the loud speaker should be default
-implemented but not working:- add a button on call and group call screen to switch audio between earpiece, speaker and bluetooth (if connected and supported)
-new:- while group call, mic disable enable toggle is not working
-
+mic toggle is working but speaker toggle is not working after these much efforts
+no need of mic toggle notifications remove that
+group video call make that working same as audio call
 
 - write changes in fixes_implemented.md and push to git

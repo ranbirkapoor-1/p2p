@@ -200,6 +200,9 @@ class GroupCallHandler {
 
             // Set default audio output for group call (speaker)
             if (window.audioOutputManager) {
+                // Register the local stream
+                window.audioOutputManager.registerStream(this.localStream);
+                // Default to speaker for group calls
                 await window.audioOutputManager.setDefaultForCallType(true);
             }
 
@@ -327,6 +330,9 @@ class GroupCallHandler {
 
             // Set default audio output for group call (speaker)
             if (window.audioOutputManager) {
+                // Register the local stream
+                window.audioOutputManager.registerStream(this.localStream);
+                // Default to speaker for group calls
                 await window.audioOutputManager.setDefaultForCallType(true);
             }
 
@@ -439,6 +445,8 @@ class GroupCallHandler {
 
         // Register with audio output manager
         if (window.audioOutputManager) {
+            // Register both the stream and audio element
+            window.audioOutputManager.registerStream(stream);
             window.audioOutputManager.registerAudioElement(audio);
         }
 
@@ -780,6 +788,15 @@ class GroupCallHandler {
     cleanup() {
         // Clear audio output manager
         if (window.audioOutputManager) {
+            // Unregister all streams
+            if (this.localStream) {
+                window.audioOutputManager.unregisterStream(this.localStream);
+            }
+            this.participants.forEach(participant => {
+                if (participant.stream) {
+                    window.audioOutputManager.unregisterStream(participant.stream);
+                }
+            });
             window.audioOutputManager.clearAudioElements();
         }
 

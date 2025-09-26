@@ -8,14 +8,17 @@ class AudioOutputManager {
             BLUETOOTH: 'bluetooth'
         };
 
-        // Current output mode
-        this.currentMode = this.OUTPUT_MODES.EARPIECE;
+        // Current output mode - default to speaker for better compatibility
+        this.currentMode = this.OUTPUT_MODES.SPEAKER;
 
         // Available devices
         this.availableDevices = [];
 
         // Audio elements to manage
         this.audioElements = [];
+
+        // Store reference to active media streams
+        this.activeStreams = new Set();
 
         // Check for device enumeration support
         this.supportsDeviceEnumeration = navigator.mediaDevices && navigator.mediaDevices.enumerateDevices;
@@ -99,47 +102,74 @@ class AudioOutputManager {
 
     // Switch to earpiece (default output)
     async switchToEarpiece() {
+        console.log('[AudioOutput] Attempting to switch to earpiece');
         this.currentMode = this.OUTPUT_MODES.EARPIECE;
 
-        if (this.supportsOutputSelection) {
-            // Try to find earpiece device
-            const earpiece = this.availableDevices.find(device =>
-                device.label.toLowerCase().includes('earpiece') ||
-                device.label.toLowerCase().includes('receiver') ||
-                device.deviceId === 'default'
-            );
+        // For all audio/video elements, set volume to normal and try setSinkId if available
+        this.audioElements.forEach(element => {
+            if (element) {
+                element.volume = 0.7; // Slightly lower volume for earpiece
+                if (this.supportsOutputSelection) {
+                    // Try to find earpiece device
+                    const earpiece = this.availableDevices.find(device =>
+                        device.label.toLowerCase().includes('earpiece') ||
+                        device.label.toLowerCase().includes('receiver') ||
+                        device.deviceId === 'default'
+                    );
 
-            if (earpiece) {
-                await this.setOutputDevice(earpiece.deviceId);
-            } else {
-                // Use default device
-                await this.setOutputDevice('default');
+                    if (earpiece && element.setSinkId) {
+                        element.setSinkId(earpiece.deviceId).catch(e =>
+                            console.warn('[AudioOutput] setSinkId failed:', e)
+                        );
+                    }
+                }
             }
+        });
+
+        // Apply constraints to all active streams
+        await this.applyAudioConstraintsToAllStreams(false);
+
+        // Mobile-specific workarounds
+        if (this.isMobile()) {
+            await this.forceMobileAudioRoute(false);
         }
 
-        // For mobile browsers, try to use audio constraints
-        this.updateAudioConstraints(false); // false = not speakerphone
         this.showOutputStatus('Earpiece');
     }
 
     // Switch to speaker
     async switchToSpeaker() {
+        console.log('[AudioOutput] Attempting to switch to speaker');
         this.currentMode = this.OUTPUT_MODES.SPEAKER;
 
-        if (this.supportsOutputSelection) {
-            // Try to find speaker device
-            const speaker = this.availableDevices.find(device =>
-                device.label.toLowerCase().includes('speaker') ||
-                device.label.toLowerCase().includes('speakerphone')
-            );
+        // For all audio/video elements, set volume to max and try setSinkId if available
+        this.audioElements.forEach(element => {
+            if (element) {
+                element.volume = 1.0; // Max volume for speaker
+                if (this.supportsOutputSelection) {
+                    // Try to find speaker device
+                    const speaker = this.availableDevices.find(device =>
+                        device.label.toLowerCase().includes('speaker') ||
+                        device.label.toLowerCase().includes('speakerphone')
+                    );
 
-            if (speaker) {
-                await this.setOutputDevice(speaker.deviceId);
+                    if (speaker && element.setSinkId) {
+                        element.setSinkId(speaker.deviceId).catch(e =>
+                            console.warn('[AudioOutput] setSinkId failed:', e)
+                        );
+                    }
+                }
             }
+        });
+
+        // Apply constraints to all active streams
+        await this.applyAudioConstraintsToAllStreams(true);
+
+        // Mobile-specific workarounds
+        if (this.isMobile()) {
+            await this.forceMobileAudioRoute(true);
         }
 
-        // For mobile browsers, try to use audio constraints
-        this.updateAudioConstraints(true); // true = speakerphone
         this.showOutputStatus('Speaker');
     }
 
@@ -193,13 +223,14 @@ class AudioOutputManager {
         }
     }
 
-    // Update audio constraints for mobile browsers
-    updateAudioConstraints(useSpeakerphone) {
-        // This is primarily for mobile browsers that don't support setSinkId
-        // We can hint to use speakerphone through constraints
+    // Apply audio constraints to all active streams
+    async applyAudioConstraintsToAllStreams(useSpeakerphone) {
+        console.log(`[AudioOutput] Applying constraints for ${useSpeakerphone ? 'speaker' : 'earpiece'} to all streams`);
 
-        // Check both call handler and group call handler for streams
+        // Collect all streams from various sources
         const streams = [];
+
+        // Get streams from call handlers
         if (window.chatApp?.callHandler?.localStream) {
             streams.push(window.chatApp.callHandler.localStream);
         }
@@ -207,46 +238,106 @@ class AudioOutputManager {
             streams.push(window.chatApp.groupCallHandler.localStream);
         }
 
-        streams.forEach(stream => {
-            const audioTracks = stream.getAudioTracks();
-            audioTracks.forEach(track => {
-                try {
-                    // Some mobile browsers support these constraints
-                    const constraints = {
-                        echoCancellation: !useSpeakerphone,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    };
-
-                    // Add non-standard constraints that some browsers support
-                    if (useSpeakerphone) {
-                        // @ts-ignore
-                        constraints.speakerphone = true;
-                        // @ts-ignore
-                        constraints.googEchoCancellation = false;
-                        // @ts-ignore
-                        constraints.googAutoGainControl = false;
-                    } else {
-                        // @ts-ignore
-                        constraints.speakerphone = false;
-                        // @ts-ignore
-                        constraints.googEchoCancellation = true;
-                        // @ts-ignore
-                        constraints.googAutoGainControl = true;
-                    }
-
-                    track.applyConstraints(constraints);
-                    console.log(`[AudioOutput] Applied constraints for ${useSpeakerphone ? 'speaker' : 'earpiece'}`);
-                } catch (error) {
-                    console.warn('[AudioOutput] Could not apply audio constraints:', error);
-                }
-            });
+        // Also get from stored active streams
+        this.activeStreams.forEach(stream => {
+            if (!streams.includes(stream)) {
+                streams.push(stream);
+            }
         });
 
-        // For iOS Safari, we might need to recreate the audio context
-        if (this.isIOS()) {
-            this.handleIOSAudioRouting(useSpeakerphone);
+        // Apply constraints to each stream
+        for (const stream of streams) {
+            const audioTracks = stream.getAudioTracks();
+            for (const track of audioTracks) {
+                try {
+                    const constraints = {
+                        echoCancellation: !useSpeakerphone,
+                        noiseSuppression: !useSpeakerphone,
+                        autoGainControl: !useSpeakerphone,
+                        sampleRate: useSpeakerphone ? 48000 : 16000,
+                        channelCount: useSpeakerphone ? 2 : 1
+                    };
+
+                    await track.applyConstraints(constraints);
+                    console.log(`[AudioOutput] Applied constraints to track:`, constraints);
+                } catch (error) {
+                    console.warn('[AudioOutput] Could not apply standard constraints:', error);
+
+                    // Try with minimal constraints
+                    try {
+                        await track.applyConstraints({
+                            echoCancellation: !useSpeakerphone
+                        });
+                    } catch (e) {
+                        console.warn('[AudioOutput] Could not apply minimal constraints:', e);
+                    }
+                }
+            }
         }
+    }
+
+    // Force mobile audio routing using various techniques
+    async forceMobileAudioRoute(useSpeakerphone) {
+        console.log(`[AudioOutput] Forcing mobile audio route to ${useSpeakerphone ? 'speaker' : 'earpiece'}`);
+
+        // Method 1: Play silent audio to force routing
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.frequency.value = useSpeakerphone ? 20000 : 1000; // High freq for speaker, low for earpiece
+            gainNode.gain.value = 0; // Silent
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 100);
+
+            // Set proper audio session category hints
+            if (audioContext.destination) {
+                audioContext.destination.channelCount = useSpeakerphone ? 2 : 1;
+            }
+        } catch (e) {
+            console.warn('[AudioOutput] Audio context method failed:', e);
+        }
+
+        // Method 2: Create and play a silent audio element
+        try {
+            const audio = new Audio();
+            audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+            audio.volume = useSpeakerphone ? 1.0 : 0.3;
+
+            // Try to set sink if supported
+            if (audio.setSinkId && this.availableDevices.length > 0) {
+                const targetDevice = this.availableDevices.find(device => {
+                    const label = device.label.toLowerCase();
+                    if (useSpeakerphone) {
+                        return label.includes('speaker') || label.includes('speakerphone');
+                    } else {
+                        return label.includes('earpiece') || label.includes('receiver') || device.deviceId === 'default';
+                    }
+                });
+
+                if (targetDevice) {
+                    await audio.setSinkId(targetDevice.deviceId);
+                }
+            }
+
+            await audio.play();
+            setTimeout(() => {
+                audio.pause();
+                audio.remove();
+            }, 100);
+        } catch (e) {
+            console.warn('[AudioOutput] Silent audio method failed:', e);
+        }
+    }
+
+    // Update audio constraints for mobile browsers (deprecated, kept for compatibility)
+    updateAudioConstraints(useSpeakerphone) {
+        this.applyAudioConstraintsToAllStreams(useSpeakerphone);
     }
 
     // Handle iOS-specific audio routing
@@ -274,12 +365,40 @@ class AudioOutputManager {
     // Register an audio element to manage
     registerAudioElement(element) {
         if (element && !this.audioElements.includes(element)) {
+            console.log('[AudioOutput] Registering audio element');
             this.audioElements.push(element);
 
             // Apply current output mode
-            if (this.supportsOutputSelection && this.currentMode === this.OUTPUT_MODES.SPEAKER) {
-                this.setOutputDevice('default');
+            if (this.currentMode === this.OUTPUT_MODES.SPEAKER) {
+                element.volume = 1.0;
+                if (this.supportsOutputSelection) {
+                    this.setOutputDevice('default');
+                }
+            } else {
+                element.volume = 0.7;
             }
+
+            // Ensure element plays through
+            element.setAttribute('playsinline', 'true');
+            element.setAttribute('autoplay', 'true');
+        }
+    }
+
+    // Register a media stream
+    registerStream(stream) {
+        if (stream) {
+            console.log('[AudioOutput] Registering media stream');
+            this.activeStreams.add(stream);
+
+            // Apply current mode constraints
+            this.applyAudioConstraintsToAllStreams(this.currentMode === this.OUTPUT_MODES.SPEAKER);
+        }
+    }
+
+    // Unregister a media stream
+    unregisterStream(stream) {
+        if (stream) {
+            this.activeStreams.delete(stream);
         }
     }
 
@@ -320,6 +439,11 @@ class AudioOutputManager {
     // Check if running on Android
     isAndroid() {
         return /Android/.test(navigator.userAgent);
+    }
+
+    // Check if running on mobile
+    isMobile() {
+        return this.isIOS() || this.isAndroid() || /Mobile|mobile/.test(navigator.userAgent);
     }
 
     // Get current output mode display name

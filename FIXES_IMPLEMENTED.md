@@ -1,5 +1,7 @@
 # P2P Chat Application - Fixes Implemented
 
+## Current Version: 1.0.10
+
 ## Change Log Format
 All changes must be documented with:
 - **Date & Time**: YYYY-MM-DD HH:MM:SS format
@@ -7,6 +9,57 @@ All changes must be documented with:
 - **Solution**: How it was fixed
 - **Files Modified**: List of affected files
 - **Version**: Updated version number
+
+---
+
+## [2025-09-26 21:00:00] - Enhanced Audio Output Switching
+
+**Problem**:
+User reported "it is still not working switching between speakers" - audio output toggle between earpiece and speaker was not functioning despite initial implementation
+
+**Solution**:
+Completely rewrote audio output management with multiple fallback methods:
+
+1. **Enhanced Stream Management**:
+   - Added registerStream() and unregisterStream() methods
+   - Register both MediaStream objects and HTMLMediaElements
+   - Apply constraints directly to MediaStreamTracks for better control
+
+2. **Mobile-Specific Audio Routing**:
+   - Implemented forceMobileAudioRoute() with multiple techniques
+   - Play silent audio through AudioContext to force routing
+   - Create temporary audio elements with specific sink settings
+   - Use different frequency ranges (20kHz for speaker, 1kHz for earpiece)
+
+3. **Improved Constraint Application**:
+   - Enhanced applyAudioConstraintsToAllStreams() method
+   - Apply echoCancellation, noiseSuppression, autoGainControl based on mode
+   - Add sampleRate and channelCount hints for routing
+   - Implement fallback to minimal constraints if advanced ones fail
+
+4. **Volume-Based Routing Hints**:
+   - Set volume to 1.0 for speaker mode
+   - Set volume to 0.7 for earpiece mode
+   - Helps some browsers route audio appropriately
+
+5. **Better Compatibility**:
+   - Default to speaker mode for initial compatibility
+   - Check for mobile devices with isMobile() method
+   - Handle iOS and Android separately where needed
+
+6. **Proper Cleanup**:
+   - Unregister streams when calls end
+   - Clear both streams and elements from tracking
+   - Prevent memory leaks from uncleaned resources
+
+**Files Modified**:
+- `js/audio-output-manager.js` - Complete rewrite of switching logic
+- `js/call-handler.js` - Added stream registration/unregistration
+- `js/group-call-handler.js` - Added stream registration/unregistration
+- `js/version.js` - Updated to v1.0.10
+- `index.html` - Updated version display
+
+**Version**: v1.0.10
 
 ---
 
