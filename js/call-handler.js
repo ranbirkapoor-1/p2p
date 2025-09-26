@@ -235,7 +235,7 @@ class CallHandler {
 
             // Set default audio output for 1-to-1 call (earpiece)
             if (window.audioOutputManager) {
-                window.audioOutputManager.setDefaultForCallType(false);
+                await window.audioOutputManager.setDefaultForCallType(false);
                 // Register local audio if exists
                 if (this.localVideo && withVideo) {
                     window.audioOutputManager.registerAudioElement(this.localVideo);

@@ -10,6 +10,55 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26 20:30:00] - Audio Output & Mic Toggle Fixes
+
+**Problem** (From updated changes.txt):
+1. Audio output defaults implemented but not working properly
+2. Audio output switching buttons implemented but not functional
+3. Group call mic toggle not working
+
+**Solution**:
+Fixed all audio output and mic toggle issues:
+
+1. **Fixed Audio Output Manager**:
+   - Made `setDefaultForCallType()` async to properly await audio routing changes
+   - Enhanced `updateAudioConstraints()` to check both call and group call handlers for streams
+   - Added more comprehensive mobile browser support with additional constraints
+   - Added Google-specific constraints for Chrome/Android devices
+   - Improved logging for debugging audio routing
+
+2. **Fixed Audio Output Switching**:
+   - Now properly applies constraints to active audio streams
+   - Works with both regular calls and group calls
+   - Added speaker-specific constraints for better mobile support
+
+3. **Fixed Group Call Mic Toggle**:
+   - Enhanced `toggleMute()` with proper state tracking and logging
+   - Added visual feedback with button title changes
+   - Added system messages when mic is muted/unmuted
+   - Properly toggles the 'muted' CSS class on the button
+   - Better error handling when no audio track is available
+
+**Technical Details**:
+- Audio constraints now include: `speakerphone`, `googEchoCancellation`, `googAutoGainControl`
+- Mic toggle shows clear feedback: "🔇 Microphone muted" / "🎤 Microphone unmuted"
+- All async operations properly awaited for consistent behavior
+
+**Files Modified**:
+- `js/audio-output-manager.js` - Fixed async operations and enhanced mobile support
+- `js/call-handler.js` - Added await for audio output settings
+- `js/group-call-handler.js` - Fixed mic toggle and added await for audio settings
+
+**Version**: v1.0.8
+
+**Testing Notes**:
+- Test earpiece/speaker defaults on mobile devices
+- Verify audio output switching works during calls
+- Confirm mic toggle shows proper visual feedback
+- Check that mute state persists and is visible to other participants
+
+---
+
 ## [2025-09-26 20:15:00] - Final Audio Output & Group Call Fixes
 
 **Problem** (From changes.txt - Items 3-5):

@@ -208,7 +208,7 @@ class GroupCallHandler {
 
             // Set default audio output for group call (speaker)
             if (window.audioOutputManager) {
-                window.audioOutputManager.setDefaultForCallType(true);
+                await window.audioOutputManager.setDefaultForCallType(true);
             }
 
             // Set timeout for responses
@@ -335,7 +335,7 @@ class GroupCallHandler {
 
             // Set default audio output for group call (speaker)
             if (window.audioOutputManager) {
-                window.audioOutputManager.setDefaultForCallType(true);
+                await window.audioOutputManager.setDefaultForCallType(true);
             }
 
             // Connect to ALL existing participants in the call
@@ -547,20 +547,29 @@ class GroupCallHandler {
 
     // Toggle mute
     toggleMute() {
-        if (!this.localStream) return;
+        if (!this.localStream) {
+            console.warn('[GroupCall] Cannot toggle mute - no local stream');
+            return;
+        }
 
         const audioTrack = this.localStream.getAudioTracks()[0];
         if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
+            const wasEnabled = audioTrack.enabled;
+            audioTrack.enabled = !wasEnabled;
+            const isNowMuted = !audioTrack.enabled;
+
+            console.log(`[GroupCall] Toggled mute: was ${wasEnabled ? 'unmuted' : 'muted'}, now ${isNowMuted ? 'muted' : 'unmuted'}`);
+
             const muteBtn = document.getElementById('groupMuteBtn');
             if (muteBtn) {
-                muteBtn.classList.toggle('muted');
+                muteBtn.classList.toggle('muted', isNowMuted);
+                muteBtn.title = isNowMuted ? 'Unmute' : 'Mute';
             }
 
             // Update own muted indicator
             const indicator = document.getElementById(`muted-${this.userId}`);
             if (indicator) {
-                indicator.style.display = audioTrack.enabled ? 'none' : 'inline';
+                indicator.style.display = isNowMuted ? 'inline' : 'none';
             }
 
             // Notify other participants
@@ -568,9 +577,18 @@ class GroupCallHandler {
                 type: 'group-call-mute-status',
                 callId: this.currentGroupCall.id,
                 from: this.userId,
-                isMuted: !audioTrack.enabled,
+                isMuted: isNowMuted,
                 timestamp: Date.now()
             });
+
+            // Show status to user
+            if (window.chatApp?.messageHandler) {
+                window.chatApp.messageHandler.displaySystemMessage(
+                    isNowMuted ? '🔇 Microphone muted' : '🎤 Microphone unmuted'
+                );
+            }
+        } else {
+            console.error('[GroupCall] No audio track found in local stream');
         }
     }
 

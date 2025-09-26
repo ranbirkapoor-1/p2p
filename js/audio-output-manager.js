@@ -54,15 +54,15 @@ class AudioOutputManager {
     }
 
     // Set default audio output based on call type
-    setDefaultForCallType(isGroupCall = false) {
+    async setDefaultForCallType(isGroupCall = false) {
         if (isGroupCall) {
             // Group calls default to speaker
             console.log('[AudioOutput] Setting default for group call: SPEAKER');
-            this.switchToSpeaker();
+            await this.switchToSpeaker();
         } else {
             // 1-to-1 calls default to earpiece
             console.log('[AudioOutput] Setting default for 1-to-1 call: EARPIECE');
-            this.switchToEarpiece();
+            await this.switchToEarpiece();
         }
     }
 
@@ -198,24 +198,50 @@ class AudioOutputManager {
         // This is primarily for mobile browsers that don't support setSinkId
         // We can hint to use speakerphone through constraints
 
+        // Check both call handler and group call handler for streams
+        const streams = [];
         if (window.chatApp?.callHandler?.localStream) {
-            const audioTracks = window.chatApp.callHandler.localStream.getAudioTracks();
+            streams.push(window.chatApp.callHandler.localStream);
+        }
+        if (window.chatApp?.groupCallHandler?.localStream) {
+            streams.push(window.chatApp.groupCallHandler.localStream);
+        }
+
+        streams.forEach(stream => {
+            const audioTracks = stream.getAudioTracks();
             audioTracks.forEach(track => {
                 try {
                     // Some mobile browsers support these constraints
-                    track.applyConstraints({
+                    const constraints = {
                         echoCancellation: !useSpeakerphone,
                         noiseSuppression: true,
-                        autoGainControl: true,
-                        // Non-standard but supported by some mobile browsers
+                        autoGainControl: true
+                    };
+
+                    // Add non-standard constraints that some browsers support
+                    if (useSpeakerphone) {
                         // @ts-ignore
-                        speakerphone: useSpeakerphone
-                    });
+                        constraints.speakerphone = true;
+                        // @ts-ignore
+                        constraints.googEchoCancellation = false;
+                        // @ts-ignore
+                        constraints.googAutoGainControl = false;
+                    } else {
+                        // @ts-ignore
+                        constraints.speakerphone = false;
+                        // @ts-ignore
+                        constraints.googEchoCancellation = true;
+                        // @ts-ignore
+                        constraints.googAutoGainControl = true;
+                    }
+
+                    track.applyConstraints(constraints);
+                    console.log(`[AudioOutput] Applied constraints for ${useSpeakerphone ? 'speaker' : 'earpiece'}`);
                 } catch (error) {
                     console.warn('[AudioOutput] Could not apply audio constraints:', error);
                 }
             });
-        }
+        });
 
         // For iOS Safari, we might need to recreate the audio context
         if (this.isIOS()) {
