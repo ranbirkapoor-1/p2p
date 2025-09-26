@@ -595,13 +595,24 @@ class GroupCallHandler {
             this.groupCallInterface.style.display = 'block';
 
             // Re-setup event listeners when showing interface
-            const endCallBtn = document.getElementById('endGroupCallBtn');
+            // Try both possible IDs for the end call button
+            const endCallBtn = document.getElementById('endGroupCallBtn') || document.getElementById('groupEndCallBtn');
             if (endCallBtn && !endCallBtn.hasAttribute('data-listener-attached')) {
                 endCallBtn.addEventListener('click', () => {
                     console.log('[GroupCall] End call button clicked from interface');
                     this.endGroupCall();
                 });
                 endCallBtn.setAttribute('data-listener-attached', 'true');
+            }
+
+            // Mute button
+            const muteBtn = document.getElementById('groupMuteBtn');
+            if (muteBtn && !muteBtn.hasAttribute('data-listener-attached')) {
+                muteBtn.addEventListener('click', () => {
+                    console.log('[GroupCall] Mute button clicked from interface');
+                    this.toggleMute();
+                });
+                muteBtn.setAttribute('data-listener-attached', 'true');
             }
 
             // Audio output button

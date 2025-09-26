@@ -10,6 +10,46 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26 20:15:00] - Final Audio Output & Group Call Fixes
+
+**Problem** (From changes.txt - Items 3-5):
+1. Audio output defaults not set properly for different call types
+2. No audio output switching buttons in call interfaces
+3. Group call disconnect button not functioning
+
+**Solution**:
+Completed implementation of all remaining audio output and group call fixes:
+
+1. **Audio Output Defaults** (Already Implemented):
+   - Verified earpiece is set as default for 1-to-1 calls (js/call-handler.js:237)
+   - Verified speaker is set as default for group calls (js/group-call-handler.js:210, 337)
+   - Both use AudioOutputManager.setDefaultForCallType() method
+
+2. **Audio Output Switching Buttons** (Already Implemented):
+   - Both call interfaces have audio output buttons (index.html:122, 184)
+   - Event listeners properly attached for switching functionality
+   - Integrated with AudioOutputManager for seamless switching
+
+3. **Fixed Group Call Disconnect Button**:
+   - Fixed ID mismatch between HTML (endGroupCallBtn) and dynamic UI (groupEndCallBtn)
+   - Added fallback ID checking to handle both possible button names
+   - Re-attaches event listeners when group call interface is shown
+   - Also fixed mute button event listener attachment
+
+**Files Modified**:
+- `js/group-call-handler.js` - Fixed button event listeners in showGroupCallInterface()
+- `fixes_implemented.md` - Updated documentation
+
+**Version**: v1.0.7
+
+**Testing Notes**:
+- All 7 items from changes.txt have been successfully implemented
+- Audio is confirmed working across all devices per user feedback
+- Group call disconnect button now properly ends calls
+- Audio output switching functional in both call types
+
+---
+
 ## [2025-09-26 19:45:32] - Audio Output Management & Group Call Fix
 
 **Problem** (From changes.txt):
