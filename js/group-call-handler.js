@@ -29,6 +29,7 @@ class GroupCallHandler {
         this.handleParticipantJoined = this.handleParticipantJoined.bind(this);
         this.handleParticipantLeft = this.handleParticipantLeft.bind(this);
         this.handleGroupCallEnd = this.handleGroupCallEnd.bind(this);
+        this.toggleMute = this.toggleMute.bind(this);  // Bind toggleMute
     }
 
     // Initialize group call UI
@@ -113,17 +114,8 @@ class GroupCallHandler {
             });
         }
 
-        // Group call interface controls - try both possible IDs
-        const muteBtn = document.getElementById('groupMuteBtn');
-        const endCallBtn = document.getElementById('groupEndCallBtn') || document.getElementById('endGroupCallBtn');
-        const addParticipantBtn = document.getElementById('addParticipantBtn');
-
-        muteBtn?.addEventListener('click', () => this.toggleMute());
-        endCallBtn?.addEventListener('click', () => {
-            console.log('[GroupCall] End call button clicked');
-            this.endGroupCall();
-        });
-        addParticipantBtn?.addEventListener('click', () => this.showAddParticipantDialog());
+        // Note: Group call interface controls are set up in showGroupCallInterface()
+        // to ensure they exist when we attach listeners
     }
 
     // Start a group call
@@ -547,32 +539,50 @@ class GroupCallHandler {
 
     // Toggle mute
     toggleMute() {
+        console.log('[GroupCall] toggleMute called');
+        console.log('[GroupCall] localStream exists:', !!this.localStream);
+        console.log('[GroupCall] currentGroupCall:', this.currentGroupCall);
+
         if (!this.localStream) {
-            console.warn('[GroupCall] Cannot toggle mute - no local stream');
+            console.error('[GroupCall] Cannot toggle mute - no local stream');
+            alert('Cannot toggle mute - no local audio stream');
             return;
         }
 
-        const audioTrack = this.localStream.getAudioTracks()[0];
-        if (audioTrack) {
-            const wasEnabled = audioTrack.enabled;
-            audioTrack.enabled = !wasEnabled;
-            const isNowMuted = !audioTrack.enabled;
+        const audioTracks = this.localStream.getAudioTracks();
+        console.log('[GroupCall] Audio tracks count:', audioTracks.length);
 
-            console.log(`[GroupCall] Toggled mute: was ${wasEnabled ? 'unmuted' : 'muted'}, now ${isNowMuted ? 'muted' : 'unmuted'}`);
+        if (audioTracks.length === 0) {
+            console.error('[GroupCall] No audio tracks in stream');
+            alert('No audio tracks found');
+            return;
+        }
 
-            const muteBtn = document.getElementById('groupMuteBtn');
-            if (muteBtn) {
-                muteBtn.classList.toggle('muted', isNowMuted);
-                muteBtn.title = isNowMuted ? 'Unmute' : 'Mute';
-            }
+        const audioTrack = audioTracks[0];
+        const wasEnabled = audioTrack.enabled;
+        audioTrack.enabled = !wasEnabled;
+        const isNowMuted = !audioTrack.enabled;
 
-            // Update own muted indicator
-            const indicator = document.getElementById(`muted-${this.userId}`);
-            if (indicator) {
-                indicator.style.display = isNowMuted ? 'inline' : 'none';
-            }
+        console.log(`[GroupCall] Toggled mute: was ${wasEnabled ? 'unmuted' : 'muted'}, now ${isNowMuted ? 'muted' : 'unmuted'}`);
+        console.log('[GroupCall] Track enabled state:', audioTrack.enabled);
 
-            // Notify other participants
+        const muteBtn = document.getElementById('groupMuteBtn');
+        if (muteBtn) {
+            muteBtn.classList.toggle('muted', isNowMuted);
+            muteBtn.title = isNowMuted ? 'Unmute' : 'Mute';
+            console.log('[GroupCall] Updated button UI');
+        } else {
+            console.error('[GroupCall] Mute button not found for UI update');
+        }
+
+        // Update own muted indicator
+        const indicator = document.getElementById(`muted-${this.userId}`);
+        if (indicator) {
+            indicator.style.display = isNowMuted ? 'inline' : 'none';
+        }
+
+        // Notify other participants
+        if (this.currentGroupCall) {
             this.broadcastToCall({
                 type: 'group-call-mute-status',
                 callId: this.currentGroupCall.id,
@@ -580,15 +590,13 @@ class GroupCallHandler {
                 isMuted: isNowMuted,
                 timestamp: Date.now()
             });
+        }
 
-            // Show status to user
-            if (window.chatApp?.messageHandler) {
-                window.chatApp.messageHandler.displaySystemMessage(
-                    isNowMuted ? '🔇 Microphone muted' : '🎤 Microphone unmuted'
-                );
-            }
-        } else {
-            console.error('[GroupCall] No audio track found in local stream');
+        // Show status to user
+        if (window.chatApp?.messageHandler) {
+            window.chatApp.messageHandler.displaySystemMessage(
+                isNowMuted ? '🔇 Microphone muted' : '🎤 Microphone unmuted'
+            );
         }
     }
 
@@ -623,14 +631,33 @@ class GroupCallHandler {
                 endCallBtn.setAttribute('data-listener-attached', 'true');
             }
 
-            // Mute button
+            // Mute button - remove old listener and add new one
             const muteBtn = document.getElementById('groupMuteBtn');
-            if (muteBtn && !muteBtn.hasAttribute('data-listener-attached')) {
-                muteBtn.addEventListener('click', () => {
-                    console.log('[GroupCall] Mute button clicked from interface');
-                    this.toggleMute();
-                });
-                muteBtn.setAttribute('data-listener-attached', 'true');
+            if (muteBtn) {
+                // Remove any existing listener first by cloning
+                const newMuteBtn = muteBtn.cloneNode(true);
+                muteBtn.parentNode.replaceChild(newMuteBtn, muteBtn);
+
+                // Store reference to handler for debugging
+                const handler = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[GroupCall] Mute button clicked');
+                    console.log('[GroupCall] Handler this:', this);
+                    console.log('[GroupCall] Handler has toggleMute:', typeof this.toggleMute);
+
+                    if (this.toggleMute) {
+                        this.toggleMute();
+                    } else {
+                        console.error('[GroupCall] toggleMute method not found!');
+                    }
+                };
+
+                // Add new listener
+                newMuteBtn.addEventListener('click', handler);
+                console.log('[GroupCall] Mute button listener attached to element:', newMuteBtn);
+            } else {
+                console.error('[GroupCall] Mute button not found in DOM');
             }
 
             // Audio output button

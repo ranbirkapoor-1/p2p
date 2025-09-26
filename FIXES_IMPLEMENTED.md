@@ -10,6 +10,39 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26 20:45:00] - Group Call Mute Button Fix
+
+**Problem**:
+Group call mute button was not responding to clicks
+
+**Solution**:
+Fixed event listener attachment and context binding issues:
+
+1. **Fixed Event Listener Conflicts**:
+   - Removed duplicate event listener setup in setupEventListeners()
+   - Event listeners now only attached in showGroupCallInterface()
+   - Used element cloning to remove old listeners before adding new ones
+
+2. **Fixed Context Binding**:
+   - Added `this.toggleMute = this.toggleMute.bind(this)` in constructor
+   - Ensures toggleMute has correct context when called from event handler
+
+3. **Enhanced Debugging**:
+   - Added comprehensive logging throughout toggleMute flow
+   - Shows audio track count, enabled state, and UI updates
+   - Alerts user if no audio stream or tracks are found
+
+4. **Improved Event Handling**:
+   - Added preventDefault() and stopPropagation() to prevent bubbling
+   - Better error handling with user feedback
+
+**Files Modified**:
+- `js/group-call-handler.js` - Fixed event listeners and context binding
+
+**Version**: v1.0.9
+
+---
+
 ## [2025-09-26 20:30:00] - Audio Output & Mic Toggle Fixes
 
 **Problem** (From updated changes.txt):
