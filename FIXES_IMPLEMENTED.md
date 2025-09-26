@@ -10,6 +10,37 @@ All changes must be documented with:
 
 ---
 
+## [2025-01-25 18:57:32] - Complete Room Cleanup Fix
+
+**Problem**:
+When all users leave a room without messages, the room wasn't being completely deleted from Firebase. The `lastOnline` data was remaining in the database structure like:
+```
+rooms
+>AAAA
+>lastOnline
+>user-aifya8cmv:1758872007326
+```
+
+**Solution**:
+Enhanced the room cleanup logic in `firebase-handler.js` to:
+1. Remove ALL non-message data when no users are present
+2. If room has messages, keep only messages and delete all other data (typing, signals, lastOnline, etc.)
+3. If room has no messages and no users, delete the entire room completely
+
+**Files Modified**:
+- `js/firebase-handler.js` - Enhanced leaveRoom() cleanup logic
+- `js/version.js` - Updated to v1.0.4
+- `index.html` - Updated version display
+
+**Version**: v1.0.4
+
+**Testing Notes**:
+- Rooms should now be completely removed when empty
+- Only message data persists when room has chat history
+- No orphaned data like lastOnline should remain
+
+---
+
 ## [2025-01-25 18:48:32] - Complete Implementation of changes.txt Requirements
 
 **Problem** (From updated changes.txt):

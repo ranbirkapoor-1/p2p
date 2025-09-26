@@ -499,23 +499,40 @@ class FirebaseHandler {
             }
         }
 
-        // Check if room should be deleted (no users left and no messages)
+        // Check if room should be deleted
         if (this.roomRef) {
             try {
                 const roomSnapshot = await this.roomRef.once('value');
                 const roomData = roomSnapshot.val();
 
-                // Check if any users left
-                const hasUsers = roomData?.users && Object.keys(roomData.users).length > 0;
-                // Check if any messages exist
-                const hasMessages = roomData?.messages && Object.keys(roomData.messages).length > 0;
+                if (roomData) {
+                    // Check if any users left
+                    const hasUsers = roomData.users && Object.keys(roomData.users).length > 0;
+                    // Check if any messages exist
+                    const hasMessages = roomData.messages && Object.keys(roomData.messages).length > 0;
 
-                // Remove room if no users and no messages
-                if (!hasUsers && !hasMessages) {
-                    console.log('[Firebase] Room is empty and has no messages - removing room');
-                    await this.roomRef.remove();
-                } else if (!hasUsers && hasMessages) {
-                    console.log('[Firebase] Room has messages - keeping room data');
+                    if (!hasUsers) {
+                        if (hasMessages) {
+                            // Keep messages but clean up other data
+                            console.log('[Firebase] Room has messages - cleaning up non-message data');
+
+                            // Remove all data except messages
+                            const updates = {};
+                            for (const key in roomData) {
+                                if (key !== 'messages') {
+                                    updates[key] = null; // Mark for deletion
+                                }
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                await this.roomRef.update(updates);
+                            }
+                        } else {
+                            // No users and no messages - delete entire room
+                            console.log('[Firebase] Room is empty - removing entire room');
+                            await this.roomRef.remove();
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('[Firebase] Error checking room status:', error);
