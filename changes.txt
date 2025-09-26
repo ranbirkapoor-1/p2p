@@ -1,4 +1,7 @@
-normal call is working properly but when i click group call button it does not do any action. it is disabled 
-i dont need group call button as extra button merge group call and normal calls. 
-if 2 peers are there then normal call if > 2 AND <=4 then use mesh network if > 4 peers then disable call, video call buttons
+the audio is audible across all devices now. very nice job
+
+in call between two peers earpiece should be default selected (speaker in the top) in group call the loud speaker should be default
+add a button on call and group call screen to switch audio between earpiece, speaker and bluetooth (if connected and supported)
+group call disconnect button not working
+
 - write changes in fixes_implemented.md and push to git

@@ -113,13 +113,16 @@ class GroupCallHandler {
             });
         }
 
-        // Group call interface controls
+        // Group call interface controls - try both possible IDs
         const muteBtn = document.getElementById('groupMuteBtn');
-        const endCallBtn = document.getElementById('groupEndCallBtn');
+        const endCallBtn = document.getElementById('groupEndCallBtn') || document.getElementById('endGroupCallBtn');
         const addParticipantBtn = document.getElementById('addParticipantBtn');
 
         muteBtn?.addEventListener('click', () => this.toggleMute());
-        endCallBtn?.addEventListener('click', () => this.endGroupCall());
+        endCallBtn?.addEventListener('click', () => {
+            console.log('[GroupCall] End call button clicked');
+            this.endGroupCall();
+        });
         addParticipantBtn?.addEventListener('click', () => this.showAddParticipantDialog());
     }
 
@@ -202,6 +205,11 @@ class GroupCallHandler {
             this.showGroupCallInterface();
             this.updateCallStatus('Calling participants...');
             this.startCallTimer();
+
+            // Set default audio output for group call (speaker)
+            if (window.audioOutputManager) {
+                window.audioOutputManager.setDefaultForCallType(true);
+            }
 
             // Set timeout for responses
             setTimeout(() => {
@@ -325,6 +333,11 @@ class GroupCallHandler {
             // Add self to display
             this.addParticipantCard(this.userId, this.nickname, true);
 
+            // Set default audio output for group call (speaker)
+            if (window.audioOutputManager) {
+                window.audioOutputManager.setDefaultForCallType(true);
+            }
+
             // Connect to ALL existing participants in the call
             console.log(`[GroupCall] Connecting to all participants in the call:`, message.participants);
 
@@ -431,6 +444,11 @@ class GroupCallHandler {
         audio.srcObject = stream;
         audio.autoplay = true;
         document.body.appendChild(audio);
+
+        // Register with audio output manager
+        if (window.audioOutputManager) {
+            window.audioOutputManager.registerAudioElement(audio);
+        }
 
         // Store participant info
         this.participants.set(peerId, {
@@ -575,6 +593,27 @@ class GroupCallHandler {
 
         if (this.groupCallInterface) {
             this.groupCallInterface.style.display = 'block';
+
+            // Re-setup event listeners when showing interface
+            const endCallBtn = document.getElementById('endGroupCallBtn');
+            if (endCallBtn && !endCallBtn.hasAttribute('data-listener-attached')) {
+                endCallBtn.addEventListener('click', () => {
+                    console.log('[GroupCall] End call button clicked from interface');
+                    this.endGroupCall();
+                });
+                endCallBtn.setAttribute('data-listener-attached', 'true');
+            }
+
+            // Audio output button
+            const audioOutputBtn = document.getElementById('groupAudioOutputBtn');
+            if (audioOutputBtn && !audioOutputBtn.hasAttribute('data-listener-attached')) {
+                audioOutputBtn.addEventListener('click', async () => {
+                    if (window.audioOutputManager) {
+                        await window.audioOutputManager.switchOutput();
+                    }
+                });
+                audioOutputBtn.setAttribute('data-listener-attached', 'true');
+            }
         }
 
         // Hide regular call interface if shown
@@ -683,6 +722,11 @@ class GroupCallHandler {
 
     // Clean up all resources
     cleanup() {
+        // Clear audio output manager
+        if (window.audioOutputManager) {
+            window.audioOutputManager.clearAudioElements();
+        }
+
         // Stop local stream
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());

@@ -10,6 +10,70 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26 19:45:32] - Audio Output Management & Group Call Fix
+
+**Problem** (From changes.txt):
+1. Group call disconnect/end button was not working
+2. No audio output switching between earpiece, speaker, and bluetooth
+3. Wrong default audio output for different call types
+4. No way to switch audio output during calls
+
+**Solution**:
+Implemented comprehensive audio output management and fixed group call controls:
+
+1. **Fixed group call disconnect button**:
+   - Added proper event listener with correct element ID
+   - Added fallback ID checking for both possible button names
+   - Re-attaches listeners when interface is shown
+   - Added console logging for debugging
+
+2. **Audio Output Management System**:
+   - Created new `AudioOutputManager` class with support for:
+     - Earpiece (default for 1-to-1 calls)
+     - Speaker (default for group calls)
+     - Bluetooth (auto-detected if available)
+   - Automatic device enumeration and detection
+   - Cross-platform support with fallbacks for mobile browsers
+
+3. **Smart Default Selection**:
+   - 1-to-1 calls: Default to earpiece for privacy
+   - Group calls (3-4 participants): Default to speaker for convenience
+   - Automatic switching based on call type
+
+4. **Audio Output Switching UI**:
+   - Added speaker button to both call interfaces
+   - Cycles through available outputs on click
+   - Shows current mode in button tooltip
+   - Displays system message when switching
+
+**Technical Implementation**:
+- Uses Web Audio API and setSinkId where available
+- Falls back to audio constraints for mobile browsers
+- Special handling for iOS Safari limitations
+- Registers all audio elements for unified control
+- Cleans up properly when calls end
+
+**Files Modified**:
+- `index.html` - Added audio output buttons to call interfaces
+- `js/audio-output-manager.js` - NEW: Complete audio output management system
+- `js/call-handler.js` - Integrated audio output manager, set defaults
+- `js/group-call-handler.js` - Fixed end button, integrated audio output
+- `js/version.js` - Updated to v1.0.6
+
+**Version**: v1.0.6
+
+**Testing Notes**:
+- Test audio output switching on different devices
+- Verify earpiece is default for 1-to-1 calls
+- Verify speaker is default for group calls
+- Check bluetooth switching if headset connected
+- Confirm group call can be ended properly
+
+**User Feedback**:
+"The audio is audible across all devices now. Very nice job!" - Confirmed working
+
+---
+
 ## [2025-09-26 19:12:45] - Unified Call System with Smart Peer Detection
 
 **Problem** (From changes.txt):

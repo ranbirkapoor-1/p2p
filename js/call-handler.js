@@ -103,15 +103,23 @@ class CallHandler {
         // Call buttons
         this.audioCallBtn?.addEventListener('click', () => this.startCall(false));
         this.videoCallBtn?.addEventListener('click', () => this.startCall(true));
-        
+
         // Incoming call actions
         this.acceptCallBtn?.addEventListener('click', () => this.acceptCall());
         this.rejectCallBtn?.addEventListener('click', () => this.rejectCall());
-        
+
         // In-call actions
         this.endCallBtn?.addEventListener('click', () => this.endCall());
         this.muteBtn?.addEventListener('click', () => this.toggleMute());
         this.videoToggleBtn?.addEventListener('click', () => this.toggleVideo());
+
+        // Audio output switching
+        const audioOutputBtn = document.getElementById('audioOutputBtn');
+        audioOutputBtn?.addEventListener('click', async () => {
+            if (window.audioOutputManager) {
+                await window.audioOutputManager.switchOutput();
+            }
+        });
     }
     
     // Enable call buttons when P2P is connected
@@ -223,6 +231,15 @@ class CallHandler {
             if (withVideo && this.localVideo) {
                 this.localVideo.srcObject = this.localStream;
                 console.log('Set local video srcObject');
+            }
+
+            // Set default audio output for 1-to-1 call (earpiece)
+            if (window.audioOutputManager) {
+                window.audioOutputManager.setDefaultForCallType(false);
+                // Register local audio if exists
+                if (this.localVideo && withVideo) {
+                    window.audioOutputManager.registerAudioElement(this.localVideo);
+                }
             }
 
             if (!peerId) {
@@ -565,12 +582,20 @@ class CallHandler {
             if (videoTracks.length > 0 && elements.video) {
                 elements.video.play().then(() => {
                     console.log(`Remote video playing for ${peerId}`);
+                    // Register with audio output manager
+                    if (window.audioOutputManager) {
+                        window.audioOutputManager.registerAudioElement(elements.video);
+                    }
                 }).catch(err => {
                     console.error(`Error playing remote video for ${peerId}:`, err);
                 });
             } else if (audioTracks.length > 0 && elements.audio) {
                 elements.audio.play().then(() => {
                     console.log(`Remote audio playing for ${peerId}`);
+                    // Register with audio output manager
+                    if (window.audioOutputManager) {
+                        window.audioOutputManager.registerAudioElement(elements.audio);
+                    }
                 }).catch(err => {
                     console.error(`Error playing remote audio for ${peerId}:`, err);
                 });
@@ -581,7 +606,12 @@ class CallHandler {
     // End call
     endCall() {
         if (!this.currentCall) return;
-        
+
+        // Clear audio output manager
+        if (window.audioOutputManager) {
+            window.audioOutputManager.clearAudioElements();
+        }
+
         // Send end call message
         if (this.currentCall.isActive) {
             const endMessage = {
@@ -592,7 +622,7 @@ class CallHandler {
             };
             this.webrtcHandler.sendMessage(endMessage);
         }
-        
+
         // Stop streams
         this.stopLocalStream();
         this.stopRemoteStream();
