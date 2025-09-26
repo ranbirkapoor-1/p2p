@@ -1,7 +1,4 @@
-- remove people icon  
-- (all p2p) this text inside bracket i dont need. keep the lights
-- room will be created and kept on firebase if a message is shared via firebase otherwise room will dissolve after the last peer left the room
-- group call works for the first two connected peers only. 3rd peer left alone. first two peers only are able to exchange voice. 3rd one no incoming voice not outgoing 
-- remove last online from firebase database
-- i need only to work this platform flawless. 
-- push to git
+normal call is working properly but when i click group call button it does not do any action. it is disabled 
+i dont need group call button as extra button merge group call and normal calls. 
+if 2 peers are there then normal call if > 2 AND <=4 then use mesh network if > 4 peers then disable call, video call buttons
+- write changes in fixes_implemented.md and push to git

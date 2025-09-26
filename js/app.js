@@ -299,14 +299,9 @@ class P2PChatApp {
             this.messageHandler.displaySystemMessage(`✅ P2P connection established with ${nickname}`);
             this.updateConnectionStatus(CONFIG.CONNECTION_STATE.CONNECTED);
             
-            // Enable file button and call buttons when P2P is connected
+            // Enable file button when P2P is connected
             document.getElementById('fileButton').disabled = false;
-            if (this.callHandler) {
-                this.callHandler.enableCallButtons();
-            }
-            if (this.groupCallHandler) {
-                this.groupCallHandler.enableCallButton();
-            }
+            // Call buttons are now managed by updateCallButtonStates in updatePeerCount()
         });
 
         // Handle peer disconnected
@@ -692,6 +687,43 @@ class P2PChatApp {
         
         // Update the visual status
         this.updateConnectionStatus(connectionState);
+
+        // Update call button states based on peer count
+        this.updateCallButtonStates(p2pConnectedCount);
+    }
+
+    // Update call button states based on peer count
+    updateCallButtonStates(peerCount) {
+        const audioCallBtn = document.getElementById('audioCallBtn');
+        const videoCallBtn = document.getElementById('videoCallBtn');
+
+        if (!audioCallBtn || !videoCallBtn) return;
+
+        if (peerCount === 0) {
+            // No peers connected - disable all call buttons
+            audioCallBtn.disabled = true;
+            videoCallBtn.disabled = true;
+            audioCallBtn.title = "No peers connected";
+            videoCallBtn.title = "No peers connected";
+        } else if (peerCount === 1) {
+            // 1 peer connected - enable both audio and video for 1-to-1 calls
+            audioCallBtn.disabled = false;
+            videoCallBtn.disabled = false;
+            audioCallBtn.title = "Start Audio Call";
+            videoCallBtn.title = "Start Video Call";
+        } else if (peerCount >= 2 && peerCount <= 3) {
+            // 2-3 peers connected (3-4 total participants) - enable audio only for group calls
+            audioCallBtn.disabled = false;
+            videoCallBtn.disabled = true;
+            audioCallBtn.title = `Start Group Audio Call (${peerCount + 1} participants)`;
+            videoCallBtn.title = "Video calls only support 2 participants";
+        } else {
+            // 4+ peers connected (5+ total participants) - disable all calls
+            audioCallBtn.disabled = true;
+            videoCallBtn.disabled = true;
+            audioCallBtn.title = `Too many participants (${peerCount + 1}). Maximum 4 allowed`;
+            videoCallBtn.title = `Too many participants (${peerCount + 1}). Maximum 4 allowed`;
+        }
     }
 
     // Leave room and cleanup

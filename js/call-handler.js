@@ -140,62 +140,91 @@ class CallHandler {
     
     // Start a call
     async startCall(withVideo = false) {
-        // NOTE: Current implementation supports 1-to-1 calls only
-        // For mesh calls with multiple peers, this would need major refactoring:
-        // - Support calling multiple peers simultaneously
-        // - Create video grid layout for multiple remote streams
-        // - Handle peer join/leave during active calls
-        // - Manage bandwidth for multiple video streams
-        
         if (this.currentCall) {
             console.log('Already in a call');
             return;
         }
-        
+
+        // Get connected peer count
+        const connectedPeers = Array.from(this.webrtcHandler.peers.keys());
+        const peerCount = connectedPeers.length;
+
+        console.log(`[Call] Starting call with ${peerCount} peers`);
+
+        // Check peer count and decide call type
+        if (peerCount === 0) {
+            alert('No peers connected');
+            return;
+        } else if (peerCount === 1) {
+            // Normal 1-to-1 call
+            console.log('[Call] Starting 1-to-1 call');
+            await this.startNormalCall(withVideo, connectedPeers[0]);
+        } else if (peerCount >= 2 && peerCount <= 3) {
+            // Group call with mesh network (2-4 total participants including self)
+            console.log('[Call] Starting group call with mesh network');
+
+            // Use GroupCallHandler for audio calls with multiple peers
+            if (!withVideo && window.chatApp?.groupCallHandler) {
+                // Start group audio call
+                await window.chatApp.groupCallHandler.startGroupCall(connectedPeers);
+            } else if (withVideo) {
+                alert('Video calls are only supported for 1-to-1 connections');
+            } else {
+                alert('Group calling not available');
+            }
+        } else {
+            // Too many peers (>4 total)
+            alert(`Cannot start call with ${peerCount + 1} participants. Maximum 4 participants allowed.`);
+            return;
+        }
+    }
+
+    // Start normal 1-to-1 call
+    async startNormalCall(withVideo = false, peerId) {
         try {
             // Check if mediaDevices is available
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('Media devices not supported. Please ensure you are using HTTPS.');
             }
-            
+
             // Start with basic constraints
             let constraints = {
                 audio: true,
                 video: withVideo
             };
-            
-            console.log('Starting call with constraints:', constraints);
-            
+
+            console.log('Starting 1-to-1 call with constraints:', constraints);
+
             try {
                 this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             } catch (firstError) {
                 console.error('Failed with basic constraints:', firstError);
-                
+
                 // If video fails, try audio only
                 if (withVideo) {
                     console.log('Trying audio-only fallback...');
                     constraints = { audio: true, video: false };
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    this.messageHandler.displaySystemMessage('⚠️ Camera unavailable, starting audio-only call');
+                    if (window.chatApp?.messageHandler) {
+                        window.chatApp.messageHandler.displaySystemMessage('⚠️ Camera unavailable, starting audio-only call');
+                    }
                 } else {
                     throw firstError;
                 }
             }
-            
+
             // Log tracks obtained
             console.log('Got local stream with tracks:');
             this.localStream.getTracks().forEach(track => {
                 console.log(`  - ${track.kind}: ${track.label}, enabled: ${track.enabled}, muted: ${track.muted}`);
             });
-            
+
             // Display local video if video call
             if (withVideo && this.localVideo) {
                 this.localVideo.srcObject = this.localStream;
                 console.log('Set local video srcObject');
             }
-            
-            // Get the peer ID (assuming single peer for now)
-            const peerId = Array.from(this.webrtcHandler.peers.keys())[0];
+
             if (!peerId) {
                 alert('No peer connected');
                 this.stopLocalStream();

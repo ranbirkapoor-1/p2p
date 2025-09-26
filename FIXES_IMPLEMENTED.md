@@ -10,6 +10,53 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26 19:12:45] - Unified Call System with Smart Peer Detection
+
+**Problem** (From changes.txt):
+1. Group call button was disabled and did nothing when clicked
+2. Separate group call button was unnecessary - needed unified calling
+3. No automatic switching between normal and group calls based on peer count
+4. No limit enforcement for maximum participants
+
+**Solution**:
+Implemented smart call system that automatically switches between call types based on peer count:
+
+1. **Removed separate group call button**:
+   - Deleted group call button from index.html
+   - Simplified UI to just audio and video call buttons
+
+2. **Unified call logic in CallHandler**:
+   - 0 peers: Buttons disabled, shows "No peers connected"
+   - 1 peer: Normal 1-to-1 call (both audio and video enabled)
+   - 2-3 peers (3-4 total): Group audio call with mesh network (video disabled)
+   - 4+ peers (5+ total): All calls disabled, shows "Too many participants"
+
+3. **Smart call routing**:
+   - `startCall()` now detects peer count and routes to appropriate handler
+   - Automatically uses GroupCallHandler for 3-4 participant calls
+   - Clear user feedback with dynamic button tooltips
+
+4. **Dynamic button state management**:
+   - New `updateCallButtonStates()` method in app.js
+   - Buttons enable/disable automatically as peers join/leave
+   - Tooltips update to show current capability
+
+**Files Modified**:
+- `index.html` - Removed group call button
+- `js/call-handler.js` - Added smart call routing based on peer count
+- `js/app.js` - Added dynamic button state management
+- `js/version.js` - Updated to v1.0.5
+
+**Version**: v1.0.5
+
+**Testing Notes**:
+- Test with 2 participants for normal calls
+- Test with 3-4 participants for group audio calls
+- Verify video is disabled for 3+ participants
+- Verify all calls disabled for 5+ participants
+
+---
+
 ## [2025-09-26] - CSS Consolidation, UI Improvements, and Bug Fixes
 
 **Problems**:
