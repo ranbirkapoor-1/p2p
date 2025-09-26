@@ -40,6 +40,10 @@ class GroupCallHandler {
         }
 
         this.participantsGrid = document.getElementById('participantsGrid');
+
+        // Get the group call button from header
+        this.groupCallBtn = document.getElementById('groupCallBtn');
+
         this.setupEventListeners();
     }
 
@@ -101,6 +105,15 @@ class GroupCallHandler {
 
     // Setup event listeners
     setupEventListeners() {
+        // Main group call button in header
+        if (this.groupCallBtn) {
+            this.groupCallBtn.addEventListener('click', () => {
+                console.log('[GroupCall] Group call button clicked');
+                this.startGroupCall();
+            });
+        }
+
+        // Group call interface controls
         const muteBtn = document.getElementById('groupMuteBtn');
         const endCallBtn = document.getElementById('groupEndCallBtn');
         const addParticipantBtn = document.getElementById('addParticipantBtn');

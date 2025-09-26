@@ -10,6 +10,57 @@ All changes must be documented with:
 
 ---
 
+## [2025-09-26] - CSS Consolidation, UI Improvements, and Bug Fixes
+
+**Problems**:
+1. Multiple CSS files scattered across the project making maintenance difficult
+2. No way to close the browser tab from the UI
+3. lastSeen functionality causing reconnection issues - users rejoining were treated as existing users
+4. Group call button was disabled and non-functional
+
+**Solutions**:
+
+### 1. Combined CSS Files
+- Combined `file-styles.css`, `call-styles.css`, and `group-call-styles.css` into single `style.css`
+- Updated `index.html` to reference only the consolidated CSS file
+- Deleted redundant CSS files for cleaner project structure
+
+### 2. Added Close Tab Button
+- Added close button (×) in the header with `window.close()` functionality
+- Styled with red background matching reconnect button theme
+- Shows informative message when browser security prevents closing user-opened tabs
+
+### 3. Removed Problematic lastSeen Functionality
+- Removed all lastSeen/heartbeat code from `firebase-handler.js`:
+  - Eliminated 30-second interval updates
+  - Removed lastOnlineRef tracking
+  - Removed lastSeen field from user data structure
+- Now relies solely on Firebase's onDisconnect() handler
+- Fixes issue where rejoining users couldn't establish P2P connections
+
+### 4. Fixed Group Call Button
+- Added proper event listener setup in `group-call-handler.js`
+- Button now gets reference during initialization
+- Click event properly triggers `startGroupCall()` method
+- Button enables correctly when P2P connections are established
+
+**Files Modified**:
+- `style.css` - Consolidated all CSS styles
+- `index.html` - Updated CSS references, added close button
+- `js/app.js` - Added close button handler
+- `js/firebase-handler.js` - Removed lastSeen functionality
+- `js/group-call-handler.js` - Fixed button initialization and event listener
+
+**Version**: v1.0.4
+
+**Testing Notes**:
+- CSS consolidation improves load time and maintainability
+- Close button provides better UX for popup/script-opened windows
+- Users can now rejoin rooms without connection issues
+- Group calling feature is now accessible
+
+---
+
 ## [2025-01-25 18:57:32] - Complete Room Cleanup Fix
 
 **Problem**:
