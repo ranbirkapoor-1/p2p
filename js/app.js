@@ -697,15 +697,21 @@ class P2PChatApp {
         const audioCallBtn = document.getElementById('audioCallBtn');
         const videoCallBtn = document.getElementById('videoCallBtn');
 
-        if (!audioCallBtn || !videoCallBtn) return;
+        console.log(`[UpdateCallButtons] Called with peerCount: ${peerCount}`);
+        if (!audioCallBtn || !videoCallBtn) {
+            console.log('[UpdateCallButtons] Buttons not found in DOM');
+            return;
+        }
 
         if (peerCount === 0) {
+            console.log('[UpdateCallButtons] Case: No peers');
             // No peers connected - disable all call buttons
             audioCallBtn.disabled = true;
             videoCallBtn.disabled = true;
             audioCallBtn.title = "No peers connected";
             videoCallBtn.title = "No peers connected";
         } else if (peerCount === 1) {
+            console.log('[UpdateCallButtons] Case: 1 peer (1-to-1 call)');
             // 1 peer connected - enable both audio and video for 1-to-1 calls
             audioCallBtn.disabled = false;
             videoCallBtn.disabled = false;
@@ -713,12 +719,15 @@ class P2PChatApp {
             videoCallBtn.title = "Start Video Call";
         } else if (peerCount >= 2 && peerCount <= 3) {
             // 2-3 peers connected (3-4 total participants) - enable both audio and video for group calls
+            console.log(`[UpdateCallButtons] Enabling both buttons for group calls (${peerCount} peers)`);
             audioCallBtn.disabled = false;
             videoCallBtn.disabled = false;
             audioCallBtn.title = `Start Group Audio Call (${peerCount + 1} participants)`;
             videoCallBtn.title = `Start Group Video Call (${peerCount + 1} participants)`;
+            console.log(`[UpdateCallButtons] Video button disabled state: ${videoCallBtn.disabled}`);
         } else {
             // 4+ peers connected (5+ total participants) - disable all calls
+            console.log(`[UpdateCallButtons] Disabling buttons - too many peers (${peerCount})`);
             audioCallBtn.disabled = true;
             videoCallBtn.disabled = true;
             audioCallBtn.title = `Too many participants (${peerCount + 1}). Maximum 4 allowed`;
