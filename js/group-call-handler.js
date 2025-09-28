@@ -608,8 +608,14 @@ class GroupCallHandler {
 
         const count = this.participantsGrid.children.length;
         const baseClass = 'participants-grid';
-        const videoClass = this.currentGroupCall?.isVideo ? ' video-grid' : '';
-        this.participantsGrid.className = `${baseClass}${videoClass} participants-${Math.min(count, 4)}`;
+
+        if (this.currentGroupCall?.isVideo) {
+            // For video calls, use the new video-call-grid class
+            this.participantsGrid.className = `${baseClass} video-call-grid participants-${Math.min(count, 4)}`;
+        } else {
+            // For audio calls, use the original layout
+            this.participantsGrid.className = `${baseClass} participants-${Math.min(count, 4)}`;
+        }
     }
 
     // Toggle mute
@@ -710,6 +716,28 @@ class GroupCallHandler {
 
         if (this.groupCallInterface) {
             this.groupCallInterface.style.display = 'block';
+
+            // Apply appropriate container class based on call type
+            const container = this.groupCallInterface.querySelector('.group-call-container');
+            if (container) {
+                if (this.currentGroupCall?.isVideo) {
+                    container.classList.add('video-call');
+                    container.classList.remove('audio-call');
+                } else {
+                    container.classList.add('audio-call');
+                    container.classList.remove('video-call');
+                }
+            }
+
+            // Apply floating controls for video calls
+            const controls = this.groupCallInterface.querySelector('.group-call-actions');
+            if (controls) {
+                if (this.currentGroupCall?.isVideo) {
+                    controls.classList.add('floating-controls');
+                } else {
+                    controls.classList.remove('floating-controls');
+                }
+            }
 
             // Re-setup event listeners when showing interface
             // Try both possible IDs for the end call button

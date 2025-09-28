@@ -1,6 +1,6 @@
 # P2P Chat Application - Fixes Implemented
 
-## Current Version: 1.0.11
+## Current Version: 1.1.0
 
 ## Change Log Format
 All changes must be documented with:
@@ -9,6 +9,52 @@ All changes must be documented with:
 - **Solution**: How it was fixed
 - **Files Modified**: List of affected files
 - **Version**: Updated version number
+
+---
+
+## [2025-09-28 15:30:00] - Portrait Video Layout with Floating Controls
+
+**Problem**:
+Video call frames needed to be portrait-oriented and cover maximum screen space for up to 4 participants, with floating controls like audio calls.
+
+**Solution**:
+Redesigned the group video call interface with portrait-optimized layout:
+
+1. **Portrait Video Grid Layout**:
+   - Full-screen video container for video calls
+   - 1 participant: Full screen
+   - 2 participants: Side-by-side vertical split
+   - 3 participants: 2 on top, 1 spanning bottom
+   - 4 participants: 2x2 grid
+   - Minimal gaps (2px) between video frames
+   - Portrait aspect ratio maintained with object-fit: cover
+
+2. **Floating Controls**:
+   - Controls float at bottom center for video calls
+   - Semi-transparent background with backdrop blur
+   - Rounded pill-shaped container
+   - Circular buttons with hover effects
+   - Red end-call button for better visibility
+
+3. **UI Improvements**:
+   - Hide header during video calls for maximum video space
+   - Enhanced name overlays with backdrop blur
+   - Better muted indicators
+   - Smooth fade-in animations
+   - Mobile-optimized sizing and spacing
+
+4. **Dynamic Layout Switching**:
+   - Automatically applies video-call or audio-call class
+   - Different layouts for audio vs video calls
+   - Responsive design for mobile devices
+
+**Files Modified**:
+- `style.css` - Complete redesign of video grid layout
+- `js/group-call-handler.js` - Dynamic class application and header control
+- `js/version.js` - Updated to v1.1.0 (major.minor.patch)
+- `index.html` - Version display update
+
+**Version**: v1.1.0
 
 ---
 
