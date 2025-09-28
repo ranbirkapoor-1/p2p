@@ -370,6 +370,12 @@ class GroupCallHandler {
                 if (peerId !== this.userId) {
                     console.log(`[GroupCall] Checking connection with ${peerId}`);
 
+                    // Add participant card immediately
+                    const peerNickname = window.chatApp?.peerNicknames?.get(peerId) || 'Participant';
+                    if (!document.getElementById(`participant-${peerId}`)) {
+                        this.addParticipantCard(peerId, peerNickname);
+                    }
+
                     // Determine who initiates based on ID comparison
                     const shouldInitiate = this.userId < peerId;
                     console.log(`[GroupCall] Connection with ${peerId}: shouldInitiate=${shouldInitiate} (myId: ${this.userId})`);
@@ -406,15 +412,22 @@ class GroupCallHandler {
 
         // Add local stream
         if (this.localStream) {
+            console.log(`[GroupCall] Adding local tracks to connection with ${peerId}`);
             this.localStream.getTracks().forEach(track => {
+                console.log(`[GroupCall] Adding ${track.kind} track: ${track.id}`);
                 pc.addTrack(track, this.localStream);
             });
+        } else {
+            console.error('[GroupCall] No local stream to add!');
         }
 
         // Handle remote stream
         pc.ontrack = (event) => {
-            console.log(`Received stream from ${peerId}`);
-            this.handleParticipantStream(peerId, event.streams[0]);
+            console.log(`[GroupCall] Received ${event.track.kind} track from ${peerId}`);
+            console.log(`[GroupCall] Track ID: ${event.track.id}, Streams: ${event.streams.length}`);
+            if (event.streams && event.streams[0]) {
+                this.handleParticipantStream(peerId, event.streams[0]);
+            }
         };
 
         // Handle ICE candidates
@@ -437,7 +450,7 @@ class GroupCallHandler {
             try {
                 const offer = await pc.createOffer({
                     offerToReceiveAudio: true,
-                    offerToReceiveVideo: false
+                    offerToReceiveVideo: this.currentGroupCall?.isVideo || false
                 });
                 await pc.setLocalDescription(offer);
 
@@ -460,16 +473,27 @@ class GroupCallHandler {
 
     // Handle participant stream
     handleParticipantStream(peerId, stream) {
+        console.log(`[GroupCall] Handling stream from ${peerId}`);
         const nickname = window.chatApp?.peerNicknames?.get(peerId) || 'Participant';
 
         // Check if this is a video call
-        const hasVideo = stream.getVideoTracks().length > 0;
+        const videoTracks = stream.getVideoTracks();
+        const audioTracks = stream.getAudioTracks();
+        const hasVideo = videoTracks.length > 0;
+
+        console.log(`[GroupCall] Stream has ${audioTracks.length} audio tracks, ${videoTracks.length} video tracks`);
+        console.log(`[GroupCall] Current call is video: ${this.currentGroupCall?.isVideo}`);
 
         if (hasVideo && this.currentGroupCall?.isVideo) {
             // For video calls, set the stream directly to the video element
             const video = document.getElementById(`video-${peerId}`);
             if (video) {
+                console.log(`[GroupCall] Setting video stream for ${peerId}`);
                 video.srcObject = stream;
+                // Ensure video plays
+                video.play().catch(e => console.error(`[GroupCall] Error playing video for ${peerId}:`, e));
+            } else {
+                console.error(`[GroupCall] Video element not found for ${peerId}`);
             }
         }
 
@@ -1088,7 +1112,7 @@ class GroupCallHandler {
             await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
             const answer = await pc.createAnswer({
                 offerToReceiveAudio: true,
-                offerToReceiveVideo: false
+                offerToReceiveVideo: this.currentGroupCall?.isVideo || false
             });
             await pc.setLocalDescription(answer);
 

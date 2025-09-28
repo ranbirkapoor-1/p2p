@@ -1,6 +1,6 @@
 # P2P Chat Application - Fixes Implemented
 
-## Current Version: 1.1.0
+## Current Version: 1.1.1
 
 ## Change Log Format
 All changes must be documented with:
@@ -9,6 +9,46 @@ All changes must be documented with:
 - **Solution**: How it was fixed
 - **Files Modified**: List of affected files
 - **Version**: Updated version number
+
+---
+
+## [2025-09-28 15:45:00] - Fix Video Stream Sharing Between Peers
+
+**Problem**:
+In group video calls, participants could only see their own video stream but not other participants' video streams. Only one peer could see all video frames while others saw only themselves.
+
+**Solution**:
+Fixed the WebRTC offer/answer exchange for video calls:
+
+1. **Fixed Video Track Reception**:
+   - Changed `offerToReceiveVideo` from hardcoded `false` to `this.currentGroupCall?.isVideo`
+   - Now properly negotiates video track reception based on call type
+   - Both offer and answer now correctly specify video requirements
+
+2. **Enhanced Participant Card Creation**:
+   - Create participant cards immediately when participants join
+   - Don't wait for stream arrival to create video containers
+   - Prevents missing video elements when streams arrive
+   - Cards created for all participants during connection setup
+
+3. **Improved Debug Logging**:
+   - Added detailed logging for track addition and reception
+   - Log video/audio track counts in streams
+   - Better error reporting when video elements not found
+   - Track IDs logged for debugging stream issues
+
+4. **Stream Handling Improvements**:
+   - Ensure video elements exist before setting srcObject
+   - Call play() on video elements to ensure playback
+   - Handle both audio and video tracks properly
+   - Check if participant card already exists before creating
+
+**Files Modified**:
+- `js/group-call-handler.js` - Fixed offer/answer video negotiation and participant card creation
+- `js/version.js` - Updated to v1.1.1
+- `index.html` - Version display update
+
+**Version**: v1.1.1
 
 ---
 
