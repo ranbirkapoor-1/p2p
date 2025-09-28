@@ -712,11 +712,11 @@ class P2PChatApp {
             audioCallBtn.title = "Start Audio Call";
             videoCallBtn.title = "Start Video Call";
         } else if (peerCount >= 2 && peerCount <= 3) {
-            // 2-3 peers connected (3-4 total participants) - enable audio only for group calls
+            // 2-3 peers connected (3-4 total participants) - enable both audio and video for group calls
             audioCallBtn.disabled = false;
-            videoCallBtn.disabled = true;
+            videoCallBtn.disabled = false;
             audioCallBtn.title = `Start Group Audio Call (${peerCount + 1} participants)`;
-            videoCallBtn.title = "Video calls only support 2 participants";
+            videoCallBtn.title = `Start Group Video Call (${peerCount + 1} participants)`;
         } else {
             // 4+ peers connected (5+ total participants) - disable all calls
             audioCallBtn.disabled = true;
