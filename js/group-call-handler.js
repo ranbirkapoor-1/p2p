@@ -118,8 +118,8 @@ class GroupCallHandler {
         // to ensure they exist when we attach listeners
     }
 
-    // Start a group call
-    async startGroupCall(selectedPeerIds = []) {
+    // Start a group call (audio or video)
+    async startGroupCall(selectedPeerIds = [], withVideo = false) {
         if (this.currentGroupCall) {
             console.log('Already in a group call');
             return;
@@ -148,8 +148,8 @@ class GroupCallHandler {
         }
 
         try {
-            // Get local audio stream
-            this.localStream = await navigator.mediaDevices.getUserMedia({
+            // Get local stream (audio and optionally video)
+            const constraints = {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -157,7 +157,18 @@ class GroupCallHandler {
                     sampleRate: 16000,
                     channelCount: 1
                 }
-            });
+            };
+
+            // Add video constraints if video call
+            if (withVideo) {
+                constraints.video = {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30 }
+                };
+            }
+
+            this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
             // Create group call object (include self in participants)
             const allParticipants = new Set([this.userId, ...selectedPeerIds]);
@@ -166,7 +177,8 @@ class GroupCallHandler {
                 initiator: this.userId,
                 participants: allParticipants,
                 startTime: Date.now(),
-                isActive: true
+                isActive: true,
+                isVideo: withVideo
             };
 
             // Add self to participants display
@@ -179,6 +191,7 @@ class GroupCallHandler {
                 from: this.userId,
                 fromNickname: this.nickname,
                 participants: Array.from(this.currentGroupCall.participants),
+                isVideo: withVideo,
                 timestamp: Date.now()
             };
 
@@ -276,7 +289,8 @@ class GroupCallHandler {
         }
 
         // Show incoming call dialog
-        const accept = confirm(`${message.fromNickname} is inviting you to a group audio call with ${message.participants.length} people. Accept?`);
+        const callType = message.isVideo ? 'video' : 'audio';
+        const accept = confirm(`${message.fromNickname} is inviting you to a group ${callType} call with ${message.participants.length} people. Accept?`);
 
         if (accept) {
             await this.acceptGroupCall(message);
@@ -288,8 +302,8 @@ class GroupCallHandler {
     // Accept group call
     async acceptGroupCall(message) {
         try {
-            // Get local audio stream
-            this.localStream = await navigator.mediaDevices.getUserMedia({
+            // Get local stream (audio and optionally video)
+            const constraints = {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -297,7 +311,18 @@ class GroupCallHandler {
                     sampleRate: 16000,
                     channelCount: 1
                 }
-            });
+            };
+
+            // Add video constraints if video call
+            if (message.isVideo) {
+                constraints.video = {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30 }
+                };
+            }
+
+            this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
             // Create group call object with ALL participants (including initiator)
             const allParticipants = new Set([...message.participants, message.from]);
@@ -306,7 +331,8 @@ class GroupCallHandler {
                 initiator: message.from,
                 participants: allParticipants,
                 startTime: Date.now(),
-                isActive: true
+                isActive: true,
+                isVideo: message.isVideo
             };
 
             // Send acceptance to initiator
@@ -436,11 +462,23 @@ class GroupCallHandler {
     handleParticipantStream(peerId, stream) {
         const nickname = window.chatApp?.peerNicknames?.get(peerId) || 'Participant';
 
-        // Create audio element
+        // Check if this is a video call
+        const hasVideo = stream.getVideoTracks().length > 0;
+
+        if (hasVideo && this.currentGroupCall?.isVideo) {
+            // For video calls, set the stream directly to the video element
+            const video = document.getElementById(`video-${peerId}`);
+            if (video) {
+                video.srcObject = stream;
+            }
+        }
+
+        // Always create audio element for audio routing
         const audio = document.createElement('audio');
         audio.id = `group-audio-${peerId}`;
         audio.srcObject = stream;
         audio.autoplay = true;
+        audio.style.display = 'none'; // Hide audio element
         document.body.appendChild(audio);
 
         // Register with audio output manager
@@ -455,6 +493,7 @@ class GroupCallHandler {
             nickname: nickname,
             stream: stream,
             audioElement: audio,
+            videoElement: hasVideo ? document.getElementById(`video-${peerId}`) : null,
             isMuted: false,
             isSpeaking: false,
             pc: this.callConnections.get(peerId)
@@ -463,8 +502,10 @@ class GroupCallHandler {
         // Add participant card to UI
         this.addParticipantCard(peerId, nickname);
 
-        // Setup voice activity detection
-        this.setupVoiceActivityDetection(peerId, stream);
+        // Setup voice activity detection for audio-only calls
+        if (!hasVideo) {
+            this.setupVoiceActivityDetection(peerId, stream);
+        }
 
         // Update status
         this.updateCallStatus(`${this.participants.size + 1} participants`);
@@ -481,18 +522,42 @@ class GroupCallHandler {
         card.className = 'participant-card';
         card.id = `participant-${peerId}`;
 
-        card.innerHTML = `
-            <div class="participant-avatar ${isSelf ? 'self' : ''}">
-                ${nickname.charAt(0).toUpperCase()}
-            </div>
-            <div class="participant-name">
-                ${nickname} ${isSelf ? '(You)' : ''}
-            </div>
-            <div class="participant-indicators">
-                <span class="speaking-indicator" id="speaking-${peerId}">🔊</span>
-                <span class="muted-indicator" id="muted-${peerId}" style="display: none;">🔇</span>
-            </div>
-        `;
+        // For video calls, add video element
+        if (this.currentGroupCall?.isVideo) {
+            card.innerHTML = `
+                <div class="participant-video-container">
+                    <video id="video-${peerId}" autoplay playsinline ${isSelf ? 'muted' : ''}></video>
+                    <div class="participant-name-overlay">
+                        ${nickname} ${isSelf ? '(You)' : ''}
+                    </div>
+                    <div class="participant-indicators">
+                        <span class="muted-indicator" id="muted-${peerId}" style="display: none;">🔇</span>
+                    </div>
+                </div>`;
+
+            // Set local video if self
+            if (isSelf && this.localStream) {
+                setTimeout(() => {
+                    const video = document.getElementById(`video-${peerId}`);
+                    if (video) {
+                        video.srcObject = this.localStream;
+                    }
+                }, 100);
+            }
+        } else {
+            // Audio-only card
+            card.innerHTML = `
+                <div class="participant-avatar ${isSelf ? 'self' : ''}">
+                    ${nickname.charAt(0).toUpperCase()}
+                </div>
+                <div class="participant-name">
+                    ${nickname} ${isSelf ? '(You)' : ''}
+                </div>
+                <div class="participant-indicators">
+                    <span class="speaking-indicator" id="speaking-${peerId}">🔊</span>
+                    <span class="muted-indicator" id="muted-${peerId}" style="display: none;">🔇</span>
+                </div>`;
+        }
 
         this.participantsGrid.appendChild(card);
         this.updateGridLayout();
@@ -542,7 +607,9 @@ class GroupCallHandler {
         if (!this.participantsGrid) return;
 
         const count = this.participantsGrid.children.length;
-        this.participantsGrid.className = `participants-grid participants-${Math.min(count, 4)}`;
+        const baseClass = 'participants-grid';
+        const videoClass = this.currentGroupCall?.isVideo ? ' video-grid' : '';
+        this.participantsGrid.className = `${baseClass}${videoClass} participants-${Math.min(count, 4)}`;
     }
 
     // Toggle mute
@@ -600,11 +667,27 @@ class GroupCallHandler {
             });
         }
 
-        // Show status to user
-        if (window.chatApp?.messageHandler) {
-            window.chatApp.messageHandler.displaySystemMessage(
-                isNowMuted ? '🔇 Microphone muted' : '🎤 Microphone unmuted'
-            );
+        // Mic toggle notifications removed per user request
+    }
+
+    // Toggle video
+    toggleVideo() {
+        if (!this.localStream) {
+            console.warn('[GroupCall] Cannot toggle video - no local stream');
+            return;
+        }
+
+        const videoTrack = this.localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            const videoBtn = document.getElementById('groupVideoToggleBtn');
+            if (videoBtn) {
+                videoBtn.classList.toggle('disabled', !videoTrack.enabled);
+                videoBtn.title = videoTrack.enabled ? 'Disable Video' : 'Enable Video';
+            }
+            console.log(`[GroupCall] Video ${videoTrack.enabled ? 'enabled' : 'disabled'}`);
+        } else {
+            console.error('[GroupCall] No video track in local stream');
         }
     }
 
@@ -666,6 +749,21 @@ class GroupCallHandler {
                 console.log('[GroupCall] Mute button listener attached to element:', newMuteBtn);
             } else {
                 console.error('[GroupCall] Mute button not found in DOM');
+            }
+
+            // Video toggle button (for video calls only)
+            const videoToggleBtn = document.getElementById('groupVideoToggleBtn');
+            if (videoToggleBtn) {
+                if (this.currentGroupCall?.isVideo) {
+                    videoToggleBtn.style.display = 'inline-flex';
+                    const newVideoBtn = videoToggleBtn.cloneNode(true);
+                    videoToggleBtn.parentNode.replaceChild(newVideoBtn, videoToggleBtn);
+                    newVideoBtn.addEventListener('click', () => {
+                        this.toggleVideo();
+                    });
+                } else {
+                    videoToggleBtn.style.display = 'none';
+                }
             }
 
             // Audio output button

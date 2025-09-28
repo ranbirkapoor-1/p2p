@@ -1227,6 +1227,50 @@ body {
     opacity: 0.6;
 }
 
+/* Video participant styles */
+.participant-video-container {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: #1a1a2e;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.participant-video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.participant-name-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.participant-video-container .participant-indicators {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* Grid layout for video calls */
+.participants-grid.video-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.participants-grid.video-grid .participant-card {
+    padding: 0;
+    background: transparent;
+}
+
 .participant-avatar {
     width: 60px;
     height: 60px;
@@ -1296,6 +1340,11 @@ body {
 
 .group-call-action-btn.mute-btn.muted {
     background: #ff6b6b;
+}
+
+.group-call-action-btn.video-toggle-btn.disabled {
+    background: #666;
+    opacity: 0.8;
 }
 
 .group-call-action-btn.end-call-btn {

@@ -171,12 +171,10 @@ class CallHandler {
             // Group call with mesh network (2-4 total participants including self)
             console.log('[Call] Starting group call with mesh network');
 
-            // Use GroupCallHandler for audio calls with multiple peers
-            if (!withVideo && window.chatApp?.groupCallHandler) {
-                // Start group audio call
-                await window.chatApp.groupCallHandler.startGroupCall(connectedPeers);
-            } else if (withVideo) {
-                alert('Video calls are only supported for 1-to-1 connections');
+            // Use GroupCallHandler for both audio and video calls with multiple peers
+            if (window.chatApp?.groupCallHandler) {
+                // Start group call (audio or video)
+                await window.chatApp.groupCallHandler.startGroupCall(connectedPeers, withVideo);
             } else {
                 alert('Group calling not available');
             }

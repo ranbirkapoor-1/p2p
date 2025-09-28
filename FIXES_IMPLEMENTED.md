@@ -1,6 +1,6 @@
 # P2P Chat Application - Fixes Implemented
 
-## Current Version: 1.0.10
+## Current Version: 1.0.11
 
 ## Change Log Format
 All changes must be documented with:
@@ -9,6 +9,54 @@ All changes must be documented with:
 - **Solution**: How it was fixed
 - **Files Modified**: List of affected files
 - **Version**: Updated version number
+
+---
+
+## [2025-09-27 00:00:00] - Group Video Calls & Mic Notification Removal
+
+**Problem** (From changes.txt):
+1. Mic toggle notifications were showing in chat (user wanted them removed)
+2. Group video calls not working - only audio was supported
+
+**Solution**:
+Implemented group video call functionality and removed mic notifications:
+
+1. **Removed Mic Toggle Notifications**:
+   - Removed system message display for mic mute/unmute
+   - Kept visual indicators on buttons and participant cards
+
+2. **Group Video Call Implementation**:
+   - Updated CallHandler to pass video flag to GroupCallHandler
+   - Modified startGroupCall to accept withVideo parameter
+   - Added video constraints for getUserMedia when video is requested
+   - Tracks whether call is video in currentGroupCall.isVideo
+
+3. **Video UI Components**:
+   - Added participant video containers with overlays for names
+   - Created video grid layout with responsive sizing
+   - Added video toggle button that appears only for video calls
+   - Implemented toggleVideo() method to enable/disable camera
+
+4. **Stream Handling**:
+   - Updated handleParticipantStream to detect and handle video tracks
+   - Sets video srcObject for remote participants
+   - Maintains audio element for routing even in video calls
+   - Properly registers both video and audio elements
+
+5. **CSS Enhancements**:
+   - Added styles for video participant cards
+   - Created video-grid class for proper layout
+   - Added video button disabled state styling
+   - Responsive video sizing with object-fit: cover
+
+**Files Modified**:
+- `js/call-handler.js` - Allow group video calls
+- `js/group-call-handler.js` - Full video support implementation
+- `index.html` - Added video toggle button
+- `style.css` - Video grid and participant styles
+- `js/version.js` - Updated to v1.0.11
+
+**Version**: v1.0.11
 
 ---
 
