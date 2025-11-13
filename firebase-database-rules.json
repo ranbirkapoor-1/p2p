@@ -1,0 +1,84 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && data.child('users').child(auth.uid).exists()",
+        ".write": "auth != null",
+
+        "users": {
+          "$userId": {
+            ".read": "auth != null && root.child('rooms').child($roomId).child('users').child(auth.uid).exists()",
+            ".write": "auth != null && auth.uid === $userId",
+            ".validate": "newData.hasChildren(['nickname', 'status', 'userId', 'joinedAt'])",
+
+            "nickname": {
+              ".validate": "newData.isString() && newData.val().length <= 20 && newData.val().length > 0"
+            },
+            "status": {
+              ".validate": "newData.val() === 'online' || newData.val() === 'offline'"
+            },
+            "userId": {
+              ".validate": "newData.val() === $userId"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        },
+
+        "messages": {
+          ".read": "auth != null && root.child('rooms').child($roomId).child('users').child(auth.uid).exists()",
+          "$messageId": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('users').child(auth.uid).exists()",
+            ".validate": "newData.hasChildren(['text', 'senderId', 'senderNickname', 'timestamp']) && newData.child('senderId').val() === auth.uid",
+
+            "text": {
+              ".validate": "newData.isString() && newData.val().length <= 10000"
+            },
+            "senderId": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "senderNickname": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        },
+
+        "signals": {
+          "$targetUserId": {
+            ".read": "auth != null && auth.uid === $targetUserId",
+            "$signalId": {
+              ".write": "auth != null && root.child('rooms').child($roomId).child('users').child(auth.uid).exists()",
+              ".validate": "newData.hasChildren(['from', 'data', 'timestamp'])",
+
+              "from": {
+                ".validate": "newData.val() === auth.uid"
+              }
+            }
+          }
+        },
+
+        "typing": {
+          "$userId": {
+            ".read": "auth != null && root.child('rooms').child($roomId).child('users').child(auth.uid).exists()",
+            ".write": "auth != null && auth.uid === $userId",
+            ".validate": "newData.hasChildren(['isTyping', 'nickname', 'timestamp'])",
+
+            "isTyping": {
+              ".validate": "newData.isBoolean()"
+            },
+            "nickname": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        }
+      }
+    }
+  }
+}

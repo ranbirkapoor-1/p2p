@@ -2,7 +2,7 @@
 class P2PChatApp {
     constructor() {
         this.roomId = null;
-        this.userId = this.generateUserId();
+        this.userId = null; // Will be set from Firebase Auth after initialization
         this.nickname = null;
         this.webrtcHandler = null;
         this.firebaseHandler = window.firebaseHandler;
@@ -47,11 +47,6 @@ class P2PChatApp {
         } else {
             console.error('[App] Firebase Handler not found! Check if firebase-handler.js is loaded properly.');
         }
-    }
-
-    // Generate unique user ID
-    generateUserId() {
-        return 'user-' + Math.random().toString(36).substr(2, 9);
     }
 
     // Setup UI event listeners
@@ -202,24 +197,33 @@ class P2PChatApp {
 
         this.roomId = roomId;
         this.nickname = nickname;
-        
-        
+
+        // Get authenticated user ID from Firebase
+        if (this.firebaseHandler && this.firebaseHandler.auth && this.firebaseHandler.auth.currentUser) {
+            this.userId = this.firebaseHandler.auth.currentUser.uid;
+            console.log('[App] Using Firebase UID:', this.userId);
+        } else {
+            console.error('[App] Firebase Auth not ready!');
+            alert('Authentication not ready. Please refresh the page.');
+            return;
+        }
+
         // Save nickname to localStorage
         localStorage.setItem('chatNickname', nickname);
-        
+
         // Hide modal, show chat
         document.getElementById('roomModal').style.display = 'none';
         document.getElementById('chatApp').style.display = 'flex';
-        
+
         // Update room display (show as private for security)
         document.getElementById('roomDisplay').textContent = 'Private Room';
-        
+
         // Enable input and file button
         document.getElementById('messageInput').disabled = false;
         document.getElementById('sendButton').disabled = false;
         document.getElementById('fileButton').disabled = false;
-        
-        // Initialize WebRTC
+
+        // Initialize WebRTC with authenticated user ID
         this.webrtcHandler = new WebRTCHandler(roomId, this.userId);
         this.setupWebRTCHandlers();
         

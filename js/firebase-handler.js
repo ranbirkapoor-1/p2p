@@ -2,6 +2,7 @@
 class FirebaseHandler {
     constructor() {
         this.db = null;
+        this.auth = null;
         this.roomRef = null;
         this.userRef = null;
         this.userId = null;
@@ -42,13 +43,20 @@ class FirebaseHandler {
             if (firebase.apps.length > 0) {
                 console.log('[Firebase] Already initialized, reusing existing app');
                 this.db = firebase.database();
+                this.auth = firebase.auth();
             } else {
                 // Initialize Firebase with config
                 console.log('[Firebase] Initializing new Firebase app...');
                 firebase.initializeApp(CONFIG.FIREBASE_CONFIG);
                 this.db = firebase.database();
+                this.auth = firebase.auth();
                 console.log('[Firebase] ✅ Initialized successfully');
             }
+
+            // Sign in anonymously
+            console.log('[Firebase] Signing in anonymously...');
+            await this.auth.signInAnonymously();
+            console.log('[Firebase] ✅ Signed in with UID:', this.auth.currentUser.uid);
             
             // Test database connection
             const testRef = this.db.ref('.info/connected');
@@ -98,11 +106,14 @@ class FirebaseHandler {
 
     // Join a room with comprehensive setup
     async joinRoom(roomId, userId, nickname) {
-        console.log(`[Firebase] Joining room: ${roomId} as ${nickname} (${userId})`);
-        
+        console.log(`[Firebase] Joining room: ${roomId} as ${nickname}`);
+
         this.roomId = roomId;
-        this.userId = userId;
+        // Use Firebase authenticated UID instead of client-provided ID
+        this.userId = this.auth.currentUser.uid;
         this.nickname = nickname || 'Anonymous';
+
+        console.log(`[Firebase] Using authenticated UID: ${this.userId}`);
         
         if (!this.db) {
             console.error('[Firebase] Database not initialized');
