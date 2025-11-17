@@ -178,8 +178,10 @@ class P2PChatApp {
     // Setup message handlers
     setupMessageHandlers() {
         // Handle received messages
-        this.messageHandler.onMessage((message, source) => {
-            this.messageHandler.displayMessage(message, false);
+        this.messageHandler.onMessage((message, source, isHistorical) => {
+            // For historical messages, check if it's from current user
+            const isSent = isHistorical && message.senderId === this.firebaseHandler.userId;
+            this.messageHandler.displayMessage(message, isSent);
         });
     }
 
@@ -352,8 +354,8 @@ class P2PChatApp {
         });
         
         // Handle Firebase messages
-        this.firebaseHandler.onMessage((message, senderId) => {
-            if (this.messageHandler.receiveMessage(message, 'firebase')) {
+        this.firebaseHandler.onMessage((message, senderId, isHistorical) => {
+            if (this.messageHandler.receiveMessage(message, 'firebase', isHistorical)) {
                 // Message was new (not duplicate)
             }
         });

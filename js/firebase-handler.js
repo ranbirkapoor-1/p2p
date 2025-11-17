@@ -257,35 +257,77 @@ class FirebaseHandler {
     // Listen for messages with deduplication
     listenForMessages() {
         if (!this.roomRef) return;
-        
+
         const messagesRef = this.roomRef.child('messages');
         const processedMessages = new Set();
-        
-        // Limit to last 100 messages
+        let initialDataLoaded = false;
+
+        // First, load existing messages (last 100)
+        messagesRef.limitToLast(100).once('value', (snapshot) => {
+            console.log(`[Firebase] Loading existing messages...`);
+            const existingMessages = [];
+
+            snapshot.forEach((childSnapshot) => {
+                const message = childSnapshot.val();
+                const messageId = childSnapshot.key;
+
+                // Add to processed set
+                processedMessages.add(messageId);
+
+                // Collect messages (don't skip own messages for history)
+                existingMessages.push({
+                    ...message,
+                    id: message.id || messageId,
+                    messageId: messageId
+                });
+            });
+
+            // Sort by timestamp
+            existingMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+            console.log(`[Firebase] Found ${existingMessages.length} existing messages`);
+
+            // Display existing messages
+            existingMessages.forEach(message => {
+                if (this.onMessageCallback) {
+                    // Pass a flag to indicate this is a historical message
+                    this.onMessageCallback(message, message.senderId, true);
+                }
+            });
+
+            initialDataLoaded = true;
+            console.log(`[Firebase] Historical messages loaded, now listening for new messages`);
+        });
+
+        // Then listen for new messages
         const messageListener = messagesRef.limitToLast(100).on('child_added', (snapshot) => {
+            // Skip until initial data is loaded
+            if (!initialDataLoaded) return;
+
             const message = snapshot.val();
             const messageId = snapshot.key;
-            
-            // Skip if already processed or from self
-            if (processedMessages.has(messageId) || message.senderId === this.userId) {
+
+            // Skip if already processed (from initial load)
+            if (processedMessages.has(messageId)) {
                 return;
             }
-            
+
             processedMessages.add(messageId);
-            
-            console.log(`[Firebase] Message received from ${message.senderNickname}`);
-            
+
+            console.log(`[Firebase] New message received from ${message.senderNickname}`);
+
             if (this.onMessageCallback) {
-                this.onMessageCallback(message, message.senderId);
+                // Pass false to indicate this is a new message (not historical)
+                this.onMessageCallback(message, message.senderId, false);
             }
-            
+
             // Clean old messages to prevent memory leak
             if (processedMessages.size > 200) {
                 const oldMessages = Array.from(processedMessages).slice(0, 100);
                 oldMessages.forEach(id => processedMessages.delete(id));
             }
         });
-        
+
         this.listeners.push({ ref: messagesRef, event: 'child_added', listener: messageListener });
     }
 

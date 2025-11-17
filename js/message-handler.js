@@ -71,7 +71,7 @@ class MessageHandler {
     }
 
     // Receive message (handles deduplication)
-    receiveMessage(message, source) {
+    receiveMessage(message, source, isHistorical = false) {
         // Check if we've already received this message
         if (this.messages.has(message.id)) {
             // Silently ignore duplicates (this is expected behavior)
@@ -82,11 +82,14 @@ class MessageHandler {
         this.messages.set(message.id, {
             ...message,
             received: true,
-            source: source
+            source: source,
+            isHistorical: isHistorical
         });
 
         // Log based on source
-        if (source === 'webrtc') {
+        if (isHistorical) {
+            console.log(`📜 Historical message loaded from Firebase`);
+        } else if (source === 'webrtc') {
             console.log(`✅ Message received via WebRTC (P2P)`);
         } else if (source === 'firebase') {
             console.log(`📡 Message received via Firebase`);
@@ -94,7 +97,7 @@ class MessageHandler {
 
         // Notify callbacks
         this.messageCallbacks.forEach(callback => {
-            callback(message, source);
+            callback(message, source, isHistorical);
         });
 
         return true;
