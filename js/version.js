@@ -5,11 +5,11 @@
 const APP_VERSION = {
     major: 1,
     minor: 2,
-    patch: 1,
+    patch: 2,
 
     // Auto-increment patch version on code changes
     // Format: YYYYMMDDHHMMSS of last update
-    lastUpdate: '20251117000000',
+    lastUpdate: '20251117010000',
 
     // Get formatted version string
     getString() {
