@@ -245,17 +245,17 @@ class P2PChatApp {
         
         // Setup file handler
         this.setupFileHandlers();
-        
-        // Join Firebase room with nickname
+
+        // Setup Firebase handlers BEFORE joining room (to catch historical messages)
         if (this.firebaseHandler) {
+            console.log('[App] Setting up Firebase handlers...');
+            this.setupFirebaseHandlers();
+
             console.log('[App] Joining Firebase room:', roomId);
             const joinResult = await this.firebaseHandler.joinRoom(roomId, this.userId, this.nickname);
             console.log('[App] Firebase room join result:', joinResult);
-            
-            if (joinResult) {
-                console.log('[App] Setting up Firebase handlers...');
-                this.setupFirebaseHandlers();
-            } else {
+
+            if (!joinResult) {
                 console.error('[App] Failed to join Firebase room!');
                 this.messageHandler.displaySystemMessage('⚠️ Failed to connect to Firebase. Running in offline mode.');
             }
