@@ -390,7 +390,6 @@ body {
 .message-sender {
     font-size: 10px;
     color: #8b8b8b;
-    text-transform: uppercase;
 }
 
 .message-text {
