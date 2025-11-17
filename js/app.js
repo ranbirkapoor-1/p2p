@@ -179,8 +179,8 @@ class P2PChatApp {
     setupMessageHandlers() {
         // Handle received messages
         this.messageHandler.onMessage((message, source, isHistorical) => {
-            // For historical messages, check if it's from current user
-            const isSent = isHistorical && message.senderId === this.firebaseHandler.userId;
+            // For historical messages, check if it's from current user by comparing nicknames
+            const isSent = isHistorical && message.senderNickname === this.firebaseHandler.nickname;
             this.messageHandler.displayMessage(message, isSent);
         });
     }
